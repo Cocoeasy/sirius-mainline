@@ -17,6 +17,17 @@ jobs:
             python3 python3-pip python3-venv git curl ca-certificates \
             btrfs-progs dosfstools e2fsprogs device-tree-compiler
 
+      - name: Restore pmbootstrap caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/var/pmbootstrap/packages
+            ~/.local/var/pmbootstrap/cache_ccache_aarch64
+            ~/.local/var/pmbootstrap/cache_distfiles
+          key: pmb-${{ hashFiles('pmaports/linux-postmarketos-qcom-sdm710/APKBUILD', 'pmaports/linux-postmarketos-qcom-sdm710/sdm710-xiaomi-sirius.dts') }}
+          restore-keys: |
+            pmb-
+
       - name: Install pmbootstrap from source
         run: |
           git clone --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git pmb-src
@@ -47,9 +58,11 @@ jobs:
           pmbootstrap config device
 
       - name: Compute package checksums
-        run: pmbootstrap checksum linux-postmarketos-qcom-sdm710
+        run: |
+          pmbootstrap checksum linux-postmarketos-qcom-sdm710
+          pmbootstrap checksum device-xiaomi-sirius
 
-      - name: Build kernel package (dump log on failure)
+      - name: Build kernel package
         run: |
           if ! pmbootstrap build --arch aarch64 linux-postmarketos-qcom-sdm710; then
             echo "=========== pmbootstrap log.txt (tail 200) ==========="
@@ -58,7 +71,12 @@ jobs:
           fi
 
       - name: Build device package
-        run: pmbootstrap build --arch aarch64 device-xiaomi-sirius
+        run: |
+          if ! pmbootstrap build --arch aarch64 device-xiaomi-sirius; then
+            echo "=========== pmbootstrap log.txt (tail 200) ==========="
+            tail -n 200 "$HOME/.local/var/pmbootstrap/log.txt" 2>/dev/null || true
+            exit 1
+          fi
 
       - name: Build the rootfs image
         run: pmbootstrap install --no-sshd --password 147147
