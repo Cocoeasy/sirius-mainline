@@ -43,15 +43,17 @@ jobs:
             "$PWD/pmaports-upstream" "$WORK" > "$HOME/.config/pmbootstrap_v3.cfg"
           echo 8 > "$WORK/version"
           echo 8 > "$WORK/.version"
-          echo "--- effective config ---"
           pmbootstrap config aports
           pmbootstrap config device
+
+      - name: Compute package checksums
+        run: pmbootstrap checksum linux-postmarketos-qcom-sdm710
 
       - name: Build kernel package (dump log on failure)
         run: |
           if ! pmbootstrap build --arch aarch64 linux-postmarketos-qcom-sdm710; then
-            echo "=========== pmbootstrap log.txt (tail 150) ==========="
-            tail -n 150 "$HOME/.local/var/pmbootstrap/log.txt" 2>/dev/null || true
+            echo "=========== pmbootstrap log.txt (tail 200) ==========="
+            tail -n 200 "$HOME/.local/var/pmbootstrap/log.txt" 2>/dev/null || true
             exit 1
           fi
 
