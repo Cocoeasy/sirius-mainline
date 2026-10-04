@@ -35,14 +35,20 @@ jobs:
           cp -r pmaports/linux-postmarketos-qcom-sdm710  pmaports-upstream/device/testing/
           ls pmaports-upstream/device/testing/ | grep -E 'sirius|sdm710'
 
-      - name: Write pmbootstrap config
+      - name: Write pmbootstrap config + seed work dir
         run: |
-          mkdir -p "$HOME/.config" "$HOME/.local/var/pmbootstrap"
+          WORK="$HOME/.local/var/pmbootstrap"
+          mkdir -p "$HOME/.config" "$WORK"
           printf '[pmbootstrap]\naports = %s\ndevice = xiaomi-sirius\nui = none\nuser = user\nwork = %s\n' \
-            "$PWD/pmaports-upstream" "$HOME/.local/var/pmbootstrap" \
-            > "$HOME/.config/pmbootstrap_v3.cfg"
+            "$PWD/pmaports-upstream" "$WORK" > "$HOME/.config/pmbootstrap_v3.cfg"
           echo "--- config file ---"; cat "$HOME/.config/pmbootstrap_v3.cfg"
-          echo "--- effective ---"; pmbootstrap config aports; pmbootstrap config device; pmbootstrap config ui
+          echo "--- probe: how does pmbootstrap store the work version? ---"
+          grep -rn "work_version" pmb-src/pmb/ 2>/dev/null | head -20 || true
+          echo 8 > "$WORK/version"
+          echo 8 > "$WORK/.version"
+          echo "--- effective config ---"
+          pmbootstrap config aports
+          pmbootstrap config device
 
       - name: Build kernel + device packages
         run: |
