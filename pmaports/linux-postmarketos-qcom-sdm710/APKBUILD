@@ -3,11 +3,13 @@
 #
 # Reuses the sdm670-mainline kernel fork (which already contains
 # sdm710.dtsi + sdm710-xiaomi-pyxis.dts) and injects the xiaomi-sirius
-# device tree at build time. Nothing else differs from
-# linux-postmarketos-qcom-sdm670.
+# device tree at build time.
+#
+# NOTE: the fork is tagged sdm670-v<version>; check the current tags at
+# https://gitlab.com/sdm670-mainline/linux/-/tags and keep pkgver in sync.
 _flavor="postmarketos-qcom-sdm710"
 pkgname=linux-$_flavor
-pkgver=6.11.3
+pkgver=7.1.3
 pkgrel=0
 pkgdesc="Mainline Kernel fork for SDM710 devices (Xiaomi Mi 8 SE)"
 arch="aarch64"
@@ -45,8 +47,7 @@ prepare() {
 	grep -q 'sdm710-xiaomi-sirius.dtb' "$mf" || \
 		printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$mf"
 
-	# Config = defconfig + the fork's sdm670.config fragment
-	# (already enables the SDM670/710 SoC drivers).
+	# Config = defconfig + the fork's sdm670.config fragment.
 	make ARCH="$_carch" defconfig
 	scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
 	make ARCH="$_carch" olddefconfig
@@ -78,5 +79,5 @@ package() {
 }
 sha512sums="
 06249c6110e38e7939efb89a9bc68060fd9c0b85cb53902d3f6279df4088a2901d0c15aadb6030d0bcbfb1f8ef6d2791a03f0218edeab4fa2fe57e3fae183263  sdm710-xiaomi-sirius.dts
-SKIP  linux-sdm670-v6.11.3.tar.gz
+SKIP  linux-sdm670-v7.1.3.tar.gz
 "
