@@ -37,7 +37,7 @@ jobs:
 
       - name: Write pmbootstrap config
         run: |
-          mkdir -p "$HOME/.config"
+          mkdir -p "$HOME/.config" "$HOME/.local/var/pmbootstrap"
           printf '[pmbootstrap]\naports = %s\ndevice = xiaomi-sirius\nui = none\nuser = user\nwork = %s\n' \
             "$PWD/pmaports-upstream" "$HOME/.local/var/pmbootstrap" \
             > "$HOME/.config/pmbootstrap_v3.cfg"

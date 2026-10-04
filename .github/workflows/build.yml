@@ -7,8 +7,6 @@ on:
         description: "sdm670-mainline/linux branch or tag"
         required: false
         default: "on-stable"
-  push:
-    branches: [main, master]
 
 jobs:
   build:
@@ -22,17 +20,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential bc bison flex libssl-dev libelf-dev \
-            python3 cpio gzip xz-utils file \
-            gcc-aarch64-linux-gnu \
-            busybox-static
+            python3 cpio gzip xz-utils file gcc-aarch64-linux-gnu busybox-static
           aarch64-linux-gnu-gcc --version | head -1
 
-      - name: Clone the sdm670-mainline kernel (the "ride")
+      - name: Clone the sdm670-mainline kernel
         run: |
           REF="${{ github.event.inputs.kernel_ref }}"
           [ -z "$REF" ] && REF="on-stable"
-          git clone --depth=1 -b "$REF" \
-            https://gitlab.com/sdm670-mainline/linux.git kernel
+          git clone --depth=1 -b "$REF" https://gitlab.com/sdm670-mainline/linux.git kernel
           cd kernel && git log --oneline -1
 
       - name: Install sirius device tree
@@ -41,38 +36,29 @@ jobs:
           MF=kernel/arch/arm64/boot/dts/qcom/Makefile
           grep -q 'sdm710-xiaomi-sirius.dtb' "$MF" || \
             printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$MF"
-          tail -3 "$MF"
 
-      - name: Configure kernel (defconfig + sdm670.config + sirius.config)
-        env:
-          ARCH: arm64
-          CROSS_COMPILE: aarch64-linux-gnu-
+      - name: Configure kernel
+        env: { ARCH: arm64, CROSS_COMPILE: "aarch64-linux-gnu-" }
         run: |
           cd kernel
           make defconfig
           scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
           scripts/kconfig/merge_config.sh -m .config ../config/sirius.config
           make olddefconfig
-          grep -E 'CONFIG_ARCH_QCOM=|CONFIG_TOUCHSCREEN_STMFTS|CONFIG_LOCALVERSION=' .config || true
 
       - name: Build kernel image + dtbs
-        env:
-          ARCH: arm64
-          CROSS_COMPILE: aarch64-linux-gnu-
+        env: { ARCH: arm64, CROSS_COMPILE: "aarch64-linux-gnu-" }
         run: |
           cd kernel
           make -j"$(nproc)" Image.gz dtbs
-          ls -l arch/arm64/boot/Image.gz
-          ls -l arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb
+          ls -l arch/arm64/boot/Image.gz arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb
 
-      - name: Build minimal initramfs (USB network + shell)
-        run: bash initramfs/build-initramfs.sh
+      - name: Build initramfs and boot.img
+        run: |
+          bash initramfs/build-initramfs.sh
+          bash scripts/mkbootimg.sh
 
-      - name: Pack boot.img
-        run: bash scripts/mkbootimg.sh
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: sirius-boot
           path: |
