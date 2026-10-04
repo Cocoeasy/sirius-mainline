@@ -81,15 +81,23 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
+		/* keep the stock ramoops area so a dying mainline kernel still
+		 * leaves its log behind, readable from TWRP at /sys/fs/pstore
+		 */
+		ramoops: ramoops@b0000000 {
+			compatible = "ramoops";
+			reg = <0 0xb0000000 0 0x400000>;
+			console-size = <0x200000>;
+			record-size = <0x40000>;
+			ftrace-size = <0x40000>;
+			pmsg-size = <0x20000>;
+		};
+
 		xbl_mem: memory@85e00000 {
 			reg = <0 0x85e00000 0 0x1c0000>;
 			no-map;
 		};
 
-		removed_region: removed-region {
-			reg = <0 0x85fc0000 0 0x4b40000>;
-			no-map;
-		};
 
 		wlan_msa_mem: wlan-msa@93300000 {
 			reg = <0 0x93300000 0 0x100000>;
