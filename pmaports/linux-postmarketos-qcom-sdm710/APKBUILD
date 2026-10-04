@@ -1,0 +1,82 @@
+# Reference: <https://postmarketos.org/devicepkg>
+# Maintainer: Your Name <you@example.org>
+#
+# Reuses the sdm670-mainline kernel fork (which already contains
+# sdm710.dtsi + sdm710-xiaomi-pyxis.dts) and injects the xiaomi-sirius
+# device tree at build time. Nothing else differs from
+# linux-postmarketos-qcom-sdm670.
+_flavor="postmarketos-qcom-sdm710"
+pkgname=linux-$_flavor
+pkgver=6.11.3
+pkgrel=0
+pkgdesc="Mainline Kernel fork for SDM710 devices (Xiaomi Mi 8 SE)"
+arch="aarch64"
+_carch="arm64"
+url="https://gitlab.com/sdm670-mainline/linux"
+license="GPL-2.0-only"
+options="!strip !check !tracedeps
+	pmb:cross-native"
+makedepends="
+	bash
+	bison
+	findutils
+	flex
+	installkernel
+	openssl-dev
+	perl
+	python3
+	zstd
+"
+
+_tag="sdm670-v$pkgver"
+
+source="
+	https://gitlab.com/sdm670-mainline/linux/-/archive/$_tag/linux-$_tag.tar.gz
+	sdm710-xiaomi-sirius.dts
+"
+builddir="$srcdir/linux-$_tag"
+
+prepare() {
+	default_prepare
+
+	# Inject the sirius device tree into the SoC tree.
+	cp "$srcdir"/sdm710-xiaomi-sirius.dts arch/arm64/boot/dts/qcom/
+	local mf=arch/arm64/boot/dts/qcom/Makefile
+	grep -q 'sdm710-xiaomi-sirius.dtb' "$mf" || \
+		printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$mf"
+
+	# Config = defconfig + the fork's sdm670.config fragment
+	# (already enables the SDM670/710 SoC drivers).
+	make ARCH="$_carch" defconfig
+	scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
+	make ARCH="$_carch" olddefconfig
+}
+
+build() {
+	unset LDFLAGS
+	make ARCH="$_carch" CC="${CC:-gcc}" -j"${JOBS:-$(nproc)}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1))-$_flavor" \
+		Image.gz dtbs modules
+}
+
+package() {
+	mkdir -p "$pkgdir"/boot
+
+	install -Dm644 "$builddir/arch/$_carch/boot/Image.gz" \
+		"$pkgdir/boot/vmlinuz"
+
+	make modules_install dtbs_install \
+		ARCH="$_carch" \
+		INSTALL_PATH="$pkgdir"/boot/ \
+		INSTALL_MOD_PATH="$pkgdir" \
+		INSTALL_MOD_STRIP=1 \
+		INSTALL_DTBS_PATH="$pkgdir"/boot/dtbs
+	rm -f "$pkgdir"/lib/modules/*/build "$pkgdir"/lib/modules/*/source
+
+	install -D "$builddir"/include/config/kernel.release \
+		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
+}
+sha512sums="
+459c70cdf81c0d55b541e7ccc13c8a9220a16abc8a5b040465293ee23d8e7119241a3014f21af106184aea82a8acef4d6199fb6b17effbf0dca92e5f6124f8f7  sdm710-xiaomi-sirius.dts
+SKIP  linux-sdm670-v6.11.3.tar.gz
+"

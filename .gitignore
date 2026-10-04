@@ -1,0 +1,6 @@
+out/
+kernel/
+stock/
+*.img
+*.dtb
+*.cpio.gz

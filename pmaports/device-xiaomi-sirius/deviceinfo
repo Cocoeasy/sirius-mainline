@@ -1,0 +1,54 @@
+# Reference: <https://postmarketos.org/deviceinfo>
+# Please use double quotes only. You can source this file in shell
+# scripts.
+
+deviceinfo_format_version="0"
+deviceinfo_name="Xiaomi Mi 8 SE"
+deviceinfo_manufacturer="Xiaomi"
+deviceinfo_codename="xiaomi-sirius"
+deviceinfo_dtb="qcom/sdm710-xiaomi-sirius"
+deviceinfo_append_dtb="true"
+deviceinfo_year="2018"
+deviceinfo_arch="aarch64"
+
+# Device related
+deviceinfo_chassis="handset"
+deviceinfo_keyboard="false"
+deviceinfo_external_storage="true"
+deviceinfo_screen_width="1080"
+deviceinfo_screen_height="2244"
+
+# Bootloader related
+deviceinfo_flash_method="fastboot"
+deviceinfo_generate_bootimg="true"
+deviceinfo_bootimg_qcdt="false"
+deviceinfo_bootimg_mtk_mkimage="false"
+deviceinfo_bootimg_dtb_second="false"
+deviceinfo_flash_pagesize="4096"
+deviceinfo_flash_offset_base="0x00000000"
+deviceinfo_flash_offset_kernel="0x00008000"
+deviceinfo_flash_offset_ramdisk="0x01000000"
+deviceinfo_flash_offset_second="0x00000000"
+deviceinfo_flash_offset_tags="0x00000100"
+deviceinfo_flash_sparse="true"
+
+# vbmeta partition exists (AVB 1.3); disable verification before flashing.
+deviceinfo_flash_fastboot_partition_vbmeta="vbmeta"
+
+# Xiaomi Inc. (Mi 8 SE)
+deviceinfo_usb_idVendor="0x2717"
+deviceinfo_usb_idProduct="0xff48"
+
+# Additional features
+deviceinfo_flash_kernel_on_update="true"
+deviceinfo_gpu_accelerated="true"
+
+# Verified on device (adb, 2026-10): this unit runs Android 16 with
+# dynamic partitions (ro.boot.dynamic_partitions=true,
+# ro.boot.super_partition=system). system/vendor are dm-linear devices
+# (dm-0..dm-4) mapped from the "super" partition. Do NOT flash a raw
+# system image to /dev/mmcblk0p79; use fastbootd / lpmake instead.
+# pmOS does not need to write them itself, so super_partitions is left
+# unset here, but the layout is recorded for reference:
+#   boot=mmcblk0p70  dtbo=mmcblk0p48  vbmeta=mmcblk0p10
+#   super(system)=mmcblk0p79  vendor=mmcblk0p80  userdata=mmcblk0p81

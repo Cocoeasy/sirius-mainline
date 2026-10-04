@@ -1,0 +1,5 @@
+#!/bin/sh
+# Nothing device-specific yet; ADSP/modem firmware is extracted by
+# qcom-firmware-extract from the stock partitions at install time.
+# Kept as a hook point for enabling services once audio/modem land.
+exit 0

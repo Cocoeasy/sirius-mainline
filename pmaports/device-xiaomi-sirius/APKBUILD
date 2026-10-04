@@ -1,0 +1,50 @@
+# Reference: <https://postmarketos.org/devicepkg>
+# Maintainer: Your Name <you@example.org>
+pkgname=device-xiaomi-sirius
+pkgdesc="Xiaomi Mi 8 SE"
+pkgver=1
+pkgrel=0
+url="https://postmarketos.org"
+license="MIT"
+arch="aarch64"
+options="!check !archcheck"
+depends="
+	alsa-ucm-conf-qcom-sdm670
+	linux-postmarketos-qcom-sdm670
+	mkbootimg
+	postmarketos-base
+	soc-qcom-sdm845
+	soc-qcom-sdm845-qbootctl
+"
+makedepends="devicepkg-dev"
+source="
+	deviceinfo
+	modules-initfs
+	device-xiaomi-sirius-nonfree-firmware.post-install
+"
+subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+}
+
+nonfree_firmware() {
+	pkgdesc="Proprietary firmware blobs for the Xiaomi Mi 8 SE"
+	depends="
+		firmware-xiaomi-sirius
+		hexagonrpcd
+		linux-firmware-ath10k
+		linux-firmware-qca
+		linux-firmware-qcom
+	"
+	install="$pkgname-nonfree-firmware.post-install"
+}
+sha512sums="
+e6e47f8d58e6231027e76c6e922f5f9512dda574f720f32b4db707bc95fa22093c5f7b86a779bdea7877123679beed3fbfacc6a66d629f9012c4b7d3a434bb94  deviceinfo
+4b9fa11ab902bbaf72a68c8ced8b80484b1486dc4018a4c669a96ef4b36e3fc2b35a9f04ca04c528814d9bc62d8ae7b0bff7d80f6439e8f1f4aac2c06fadc9e6  modules-initfs
+164b2c585798dcd907f9606df5b4622b777b9be630103740f23ed2c2295e591804e547716be3746c30709e1c60d2fcb80dca26e375eeebaddd1d4c44f47c45d5  device-xiaomi-sirius-nonfree-firmware.post-install
+"
