@@ -19,7 +19,7 @@ jobs:
 
       - name: Install pmbootstrap from source (PyPI is yanked)
         run: |
-          git clone --depth=1 https://gitlab.com/postmarketOS/pmbootstrap.git pmb-src
+          git clone --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git pmb-src
           python3 -m venv "$HOME/venv"
           . "$HOME/venv/bin/activate"
           pip install --upgrade pip
@@ -28,7 +28,7 @@ jobs:
           "$HOME/venv/bin/pmbootstrap" --version || true
 
       - name: Clone pmaports
-        run: git clone --depth=1 https://gitlab.com/postmarketOS/pmaports.git pmaports-upstream
+        run: git clone --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmaports.git pmaports-upstream
 
       - name: Drop in our aports
         run: |
