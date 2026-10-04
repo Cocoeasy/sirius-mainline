@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""Dependency-free Android boot image (header v1) packer for xiaomi-sirius.
+"""Packer for xiaomi-sirius boot images (header v2, matching the stock layout).
 
-Header v1 layout (little-endian):
-  magic[8] "ANDROID!"
-  kernel_size, kernel_addr, ramdisk_size, ramdisk_addr,
-  second_size, second_addr, tags_addr, page_size  (u32 each)
-  header_version, os_version (u32)
-  name[16], cmdline[512], id[8], extra_cmdline[1024]
-  -> padded to page_size
+Stock sirius layout (measured from the vendor image):
+  [v1-shaped header 0..1632]
+    @1632 dtb_size    (u32)
+    @1636 dtb_addr    (u64)  = file offset of the dtb blob
+    @1644 header_size (u32) = 1660
+    @1648 pad[12]
+  -> 1660 bytes, padded to page_size
+  then: kernel, ramdisk, dtb blob (each page-aligned)
 
-sirius: BOARD_BOOT_HEADER_VERSION=1, BOARD_KERNEL_SEPARATED_DTBO=true.
-With v1 the DTB is appended to the kernel (Image.gz + dtb).
+v1 field layout (offsets): magic 0, kernel_size 8, kernel_addr 12,
+ramdisk_size 16, ramdisk_addr 20, second_size 24, second_addr 28,
+tags_addr 32, page_size 36, header_version 40, os_version 44,
+name 48, cmdline 64, id 576 (32 bytes), extra_cmdline 608 (1024) -> 1632
 """
-import hashlib, struct, sys
+import hashlib
+import struct
+import sys
 
 PAGE = 4096
 KERNEL_ADDR = 0x00008000
@@ -20,45 +25,56 @@ RAMDISK_ADDR = 0x01000000
 TAGS_ADDR = 0x00000100
 NAME = b"sirius"
 CMDLINE = (b"console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA90000 "
-           b"androidboot.hardware=qcom androidboot.console=ttyMSM0 loop.max_part=7")
+           b"androidboot.hardware=qcom androidboot.console=ttyMSM0 loop.max_part=7 console=tty0")
+HEADER_SIZE = 1660
+ZERO = b"\x00"
 
 
-def pad(d, page):
+def pad(d, page=PAGE):
     r = len(d) % page
-    return d + (b"\x00" * (page - r) if r else b"")
+    return d + (ZERO * (page - r) if r else b"")
 
 
 def main(kernel_path, dtb_path, ramdisk_path, out_path):
     kernel = open(kernel_path, "rb").read()
-    dtb = open(dtb_path, "rb").read()
     ramdisk = open(ramdisk_path, "rb").read()
+    dtb = open(dtb_path, "rb").read()
 
-    kwd = kernel + dtb  # header v1: dtb appended to kernel
+    # dtb blob sits after header+kernel+ramdisk, each page aligned
+    dtb_off = PAGE + len(pad(kernel)) + len(pad(ramdisk))
 
-    h = hashlib.sha1()
-    h.update(kwd); h.update(ramdisk); h.update(b"")
-    img_id = h.digest()[:8]
+    digest = hashlib.sha1()
+    digest.update(kernel)
+    digest.update(ramdisk)
+    digest.update(b"")
+    img_id = digest.digest().ljust(32, ZERO)   # AOSP id[8] == 32 bytes
 
-    header = struct.pack("<8sIIIIIIII", b"ANDROID!",
-                         len(kwd), KERNEL_ADDR,
-                         len(ramdisk), RAMDISK_ADDR,
-                         0, 0, TAGS_ADDR, PAGE)
-    header += struct.pack("<I", 1)   # header_version
-    header += struct.pack("<I", 0)   # os_version
-    header += NAME.ljust(16, b"\x00")[:16]
-    header += CMDLINE.ljust(512, b"\x00")[:512]
-    header += img_id
-    header += b"\x00" * 1024
+    hdr = struct.pack("<8sIIIIIIII", b"ANDROID!",
+                      len(kernel), KERNEL_ADDR,
+                      len(ramdisk), RAMDISK_ADDR,
+                      0, 0, TAGS_ADDR, PAGE)
+    hdr += struct.pack("<I", 2)                # header_version = 2
+    hdr += struct.pack("<I", 0)                # os_version
+    hdr += NAME.ljust(16, ZERO)[:16]
+    hdr += CMDLINE.ljust(512, ZERO)[:512]
+    hdr += img_id
+    hdr += ZERO * 1024
+    assert len(hdr) == 1632, len(hdr)
 
-    if len(header) > PAGE:
-        sys.exit(f"header {len(header)} > page {PAGE}")
+    hdr += struct.pack("<I", len(dtb))         # dtb_size    @1632
+    hdr += struct.pack("<Q", dtb_off)          # dtb_addr    @1636
+    hdr += struct.pack("<I", HEADER_SIZE)      # header_size @1644
+    hdr += ZERO * 12                           # pad to 1660
+    assert len(hdr) == HEADER_SIZE, len(hdr)
 
-    img = pad(header, PAGE) + pad(kwd, PAGE) + pad(ramdisk, PAGE)
-    open(out_path, "wb").write(img)
-    print(f"boot.img -> {out_path} ({len(img)} bytes)")
+    img = pad(hdr) + pad(kernel) + pad(ramdisk) + pad(dtb)
+    with open(out_path, "wb") as f:
+        f.write(img)
+    print("boot.img -> %s (%d bytes)  dtb_off=%d dtb_size=%d"
+          % (out_path, len(img), dtb_off, len(dtb)))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        sys.exit("usage: mkbootimg.py <Image.gz> <dtb> <initramfs.cpio.gz> <out/boot.img>")
+        sys.exit("usage: mkbootimg.py <Image.gz> <dtb> <initramfs.cpio.gz> <out>")
     main(*sys.argv[1:])
