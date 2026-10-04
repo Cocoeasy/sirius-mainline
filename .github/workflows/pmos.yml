@@ -41,19 +41,22 @@ jobs:
           mkdir -p "$HOME/.config" "$WORK"
           printf '[pmbootstrap]\naports = %s\ndevice = xiaomi-sirius\nui = none\nuser = user\nwork = %s\n' \
             "$PWD/pmaports-upstream" "$WORK" > "$HOME/.config/pmbootstrap_v3.cfg"
-          echo "--- config file ---"; cat "$HOME/.config/pmbootstrap_v3.cfg"
-          echo "--- probe: how does pmbootstrap store the work version? ---"
-          grep -rn "work_version" pmb-src/pmb/ 2>/dev/null | head -20 || true
           echo 8 > "$WORK/version"
           echo 8 > "$WORK/.version"
           echo "--- effective config ---"
           pmbootstrap config aports
           pmbootstrap config device
 
-      - name: Build kernel + device packages
+      - name: Build kernel package (dump log on failure)
         run: |
-          pmbootstrap build --arch aarch64 linux-postmarketos-qcom-sdm710
-          pmbootstrap build --arch aarch64 device-xiaomi-sirius
+          if ! pmbootstrap build --arch aarch64 linux-postmarketos-qcom-sdm710; then
+            echo "=========== pmbootstrap log.txt (tail 150) ==========="
+            tail -n 150 "$HOME/.local/var/pmbootstrap/log.txt" 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Build device package
+        run: pmbootstrap build --arch aarch64 device-xiaomi-sirius
 
       - name: Build the rootfs image
         run: pmbootstrap install --no-sshd --password 147147
