@@ -75,10 +75,21 @@ try_cross_compile() {
   echo "  busybox cross-compiled from source"
 }
 
+BB_CACHE="${HOME:-/tmp}/.cache/sirius-busybox"
+
 rm -rf "$IRD"
 mkdir -p "$IRD"/{bin,etc,proc,sys,dev,lib,lib64}
-try_apt_arm64 || try_cross_compile || {
-  echo "FATAL: could not obtain an AArch64 static busybox" >&2; exit 1; }
+# Reuse a previously fetched/compiled copy when CI restored it from cache, so
+# repeated pack runs do not re-download or re-compile busybox.
+if verify_aarch64 "$BB_CACHE/busybox"; then
+  install -m 0755 "$BB_CACHE/busybox" "$IRD/bin/busybox"
+  echo "  busybox from cache ($BB_CACHE)"
+else
+  try_apt_arm64 || try_cross_compile || {
+    echo "FATAL: could not obtain an AArch64 static busybox" >&2; exit 1; }
+  mkdir -p "$BB_CACHE"
+  cp "$IRD/bin/busybox" "$BB_CACHE/busybox"
+fi
 echo "initramfs busybox e_machine: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | tr -d ' \n') (b700 = AArch64)"
 
 for a in sh ls cat mount umount echo ip ifconfig udhcpd udhcpc \
