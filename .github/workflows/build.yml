@@ -58,6 +58,18 @@ jobs:
           bash initramfs/build-initramfs.sh
           bash scripts/mkbootimg.sh
 
+      - name: Verify initramfs is AArch64
+        run: |
+          mkdir -p /tmp/ird
+          ( cd /tmp/ird && gzip -dc "$GITHUB_WORKSPACE/out/initramfs.cpio.gz" | cpio -idm --quiet )
+          ls -l /tmp/ird/init /tmp/ird/bin/busybox
+          EM=$(od -An -tx1 -j18 -N2 /tmp/ird/bin/busybox | tr -d ' \n')
+          CL=$(od -An -tx1 -j4  -N1 /tmp/ird/bin/busybox | tr -d ' \n')
+          echo "busybox elfclass=$CL e_machine=$EM"
+          [ "$CL" = "02" ] && [ "$EM" = "b700" ] || {
+            echo "::error::initramfs busybox is not a 64-bit AArch64 binary"; exit 1; }
+          head -1 /tmp/ird/init
+
       - uses: actions/upload-artifact@v4
         with:
           name: sirius-boot
