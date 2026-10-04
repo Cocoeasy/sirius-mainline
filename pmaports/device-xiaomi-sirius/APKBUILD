@@ -9,12 +9,9 @@ license="MIT"
 arch="aarch64"
 options="!check !archcheck"
 depends="
-	alsa-ucm-conf-qcom-sdm670
 	linux-postmarketos-qcom-sdm710
 	mkbootimg
 	postmarketos-base
-	soc-qcom-sdm845
-	soc-qcom-sdm845-qbootctl
 "
 makedepends="devicepkg-dev"
 source="

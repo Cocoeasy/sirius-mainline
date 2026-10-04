@@ -17,16 +17,13 @@ jobs:
             python3 python3-pip python3-venv git curl ca-certificates \
             btrfs-progs dosfstools e2fsprogs device-tree-compiler
 
-      - name: Restore pmbootstrap caches
+      - name: Restore built-package cache
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.local/var/pmbootstrap/packages
-            ~/.local/var/pmbootstrap/cache_ccache_aarch64
-            ~/.local/var/pmbootstrap/cache_distfiles
-          key: pmb-${{ hashFiles('pmaports/linux-postmarketos-qcom-sdm710/APKBUILD', 'pmaports/linux-postmarketos-qcom-sdm710/sdm710-xiaomi-sirius.dts') }}
+          path: ~/.local/var/pmbootstrap/packages
+          key: pmbpkg-${{ hashFiles('pmaports/linux-postmarketos-qcom-sdm710/APKBUILD', 'pmaports/linux-postmarketos-qcom-sdm710/sdm710-xiaomi-sirius.dts') }}
           restore-keys: |
-            pmb-
+            pmbpkg-
 
       - name: Install pmbootstrap from source
         run: |
@@ -79,7 +76,12 @@ jobs:
           fi
 
       - name: Build the rootfs image
-        run: pmbootstrap install --no-sshd --password 147147
+        run: |
+          if ! pmbootstrap install --no-sshd --password 147147; then
+            echo "=========== pmbootstrap log.txt (tail 250) ==========="
+            tail -n 250 "$HOME/.local/var/pmbootstrap/log.txt" 2>/dev/null || true
+            exit 1
+          fi
 
       - name: Export artifacts
         run: |
