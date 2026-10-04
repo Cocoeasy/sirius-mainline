@@ -1,0 +1,72 @@
+name: pmos-sirius
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3 python3-pip python3-venv git curl ca-certificates \
+            btrfs-progs dosfstools e2fsprogs
+
+      - name: Install pmbootstrap
+        run: |
+          python3 -m venv "$HOME/venv"
+          . "$HOME/venv/bin/activate"
+          pip install --upgrade pip
+          pip install pmbootstrap
+          echo "$HOME/venv/bin" >> "$GITHUB_PATH"
+          pmbootstrap --version
+
+      - name: Clone pmaports
+        run: git clone --depth=1 https://gitlab.com/postmarketOS/pmaports.git pmaports-upstream
+
+      - name: Drop in our aports
+        run: |
+          cp -r pmaports/device-xiaomi-sirius            pmaports-upstream/device/testing/
+          cp -r pmaports/linux-postmarketos-qcom-sdm710  pmaports-upstream/device/testing/
+          ls pmaports-upstream/device/testing/ | grep -E 'sirius|sdm710'
+
+      - name: Configure pmbootstrap (non-interactive)
+        run: |
+          mkdir -p "$HOME/.config"
+          pmbootstrap -y init
+          pmbootstrap config aports "$PWD/pmaports-upstream"
+          pmbootstrap config device "xiaomi-sirius"
+          pmbootstrap config ui "none"
+          pmbootstrap config systemd "none"
+          pmbootstrap config user "user"
+          pmbootstrap config extra_space "0"
+          pmbootstrap config ssh_keys "false"
+          pmbootstrap config sudo_timer "false"
+          pmbootstrap -v config
+
+      - name: Build kernel + device packages
+        run: |
+          pmbootstrap build --arch aarch64 linux-postmarketos-qcom-sdm710
+          pmbootstrap build --arch aarch64 device-xiaomi-sirius
+
+      - name: Build the rootfs image
+        run: pmbootstrap install --no-sshd
+
+      - name: Export artifacts
+        run: |
+          pmbootstrap export
+          mkdir -p out
+          cp -v "$HOME/.local/var/pmbootstrap/chroot_native/home/pmos/rootfs/"*.img out/ 2>/dev/null || true
+          find "$HOME/.local/var/pmbootstrap" -name 'boot.img' -exec cp -v {} out/ \; 2>/dev/null || true
+          ls -lR out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pmos-sirius-artifacts
+          path: out/
+          if-no-files-found: warn
