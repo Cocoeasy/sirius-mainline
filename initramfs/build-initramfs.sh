@@ -67,7 +67,6 @@ try_cross_compile() {
       && sed -i -e 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' \
                 -e 's/^CONFIG_STATIC=n$/CONFIG_STATIC=y/' .config \
       && grep -q '^CONFIG_STATIC=y' .config \
-      && make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig >/dev/null \
       && make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- >/dev/null
   ) || return 1
   verify_aarch64 "$d/busybox-$v/busybox" || return 1
