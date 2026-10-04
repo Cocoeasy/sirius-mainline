@@ -65,8 +65,12 @@ try_cross_compile() {
       && cd "busybox-$v" \
       && make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig >/dev/null \
       && sed -i -e 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' \
-                -e 's/^CONFIG_STATIC=n$/CONFIG_STATIC=y/' .config \
+                -e 's/^CONFIG_STATIC=n$/CONFIG_STATIC=y/' \
+                -e 's/^CONFIG_TC=y$/# CONFIG_TC is not set/' \
+                -e 's/^# CONFIG_TELNETD is not set/CONFIG_TELNETD=y/' \
+                -e 's/^# CONFIG_UDHCPD is not set/CONFIG_UDHCPD=y/' .config \
       && grep -q '^CONFIG_STATIC=y' .config \
+      && ! grep -q '^CONFIG_TC=y' .config \
       && make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- >/dev/null
   ) || return 1
   verify_aarch64 "$d/busybox-$v/busybox" || return 1
