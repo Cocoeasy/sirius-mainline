@@ -41,8 +41,8 @@
 / {
 	model = "Xiaomi Mi 8 SE (xiaomi-sirius)";
 	compatible = "qcom,sdm670-mtp", "qcom,sdm670", "qcom,mtp";
-	qcom,msm-id = <0x360 0 393 0>;	/* verified on device: soc_id=360 */
-	qcom,board-id = <32 0>;		/* downstream CAF (reading needs root) */
+	qcom,msm-id = <0x168 0x0>;		/* on-device: /proc/device-tree/qcom,msm-id */
+	qcom,board-id = <0x20 0>;		/* on-device: /proc/device-tree/qcom,board-id */
 	chassis-type = "handset";
 
 	aliases {

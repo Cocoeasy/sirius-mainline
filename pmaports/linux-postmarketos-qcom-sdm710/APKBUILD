@@ -77,6 +77,6 @@ package() {
 		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
 }
 sha512sums="
-459c70cdf81c0d55b541e7ccc13c8a9220a16abc8a5b040465293ee23d8e7119241a3014f21af106184aea82a8acef4d6199fb6b17effbf0dca92e5f6124f8f7  sdm710-xiaomi-sirius.dts
+06249c6110e38e7939efb89a9bc68060fd9c0b85cb53902d3f6279df4088a2901d0c15aadb6030d0bcbfb1f8ef6d2791a03f0218edeab4fa2fe57e3fae183263  sdm710-xiaomi-sirius.dts
 SKIP  linux-sdm670-v6.11.3.tar.gz
 "
