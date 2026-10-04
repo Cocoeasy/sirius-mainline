@@ -11,10 +11,9 @@ mkdir -p "$OUT"
 # an arm64 executable, otherwise execve() fails with ENOEXEC (-8) and the
 # kernel panics with "No working init found".
 #
-# Source: Ubuntu's own signed arm64 archives (busybox-static:arm64) fetched
-# through apt, so the package signature is verified. The extracted binary is
-# then checked for ELF class 64 / e_machine AArch64 before it is trusted, so
-# a wrong-architecture file can never silently reach the initramfs again.
+# Every candidate is checked for ELF class 64 / e_machine AArch64 before it
+# is trusted, so a wrong-architecture file cannot silently reach the
+# initramfs again.
 
 verify_aarch64() {
   local f="$1" cls mach
@@ -28,11 +27,20 @@ verify_aarch64() {
   return 0
 }
 
-fetch_arm64_busybox() {
-  local d
+# Strategy 1: Ubuntu's signed arm64 archive. The runner's own apt sources are
+# restricted to amd64, so add an explicitly arch-pinned source for arm64
+# instead of relying on whatever the image ships.
+try_apt_arm64() {
+  local d codename
   d="$(mktemp -d)"
+  codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-noble}")"
+  printf 'deb [arch=arm64] http://archive.ubuntu.com/ubuntu %s main universe\n' \
+    "$codename" | sudo tee /etc/apt/sources.list.d/arm64-only.list >/dev/null
   sudo dpkg --add-architecture arm64 >/dev/null 2>&1 || true
-  sudo apt-get update -qq             >/dev/null 2>&1 || true
+  sudo apt-get update -qq \
+    -o Dir::Etc::sourcelist="sources.list.d/arm64-only.list" \
+    -o Dir::Etc::sourceparts="-" \
+    -o APT::Get::List-Cleanup="0" >/dev/null 2>&1 || true
   if ! ( cd "$d" && apt-get download busybox-static:arm64 >/dev/null 2>&1 ); then
     echo "  apt-get download busybox-static:arm64 failed" >&2
     return 1
@@ -40,15 +48,38 @@ fetch_arm64_busybox() {
   dpkg-deb -x "$d"/busybox-static_*arm64.deb "$d/root" >/dev/null 2>&1 || return 1
   verify_aarch64 "$d/root/bin/busybox" || return 1
   install -m 0755 "$d/root/bin/busybox" "$IRD/bin/busybox"
+  echo "  busybox from Ubuntu arm64 archive"
+}
+
+# Strategy 2: cross-compile upstream busybox with the toolchain the runner
+# already has. Self-contained, no dependency on multiarch apt at all.
+try_cross_compile() {
+  local d v=1.36.1
+  d="$(mktemp -d)"
+  echo "  cross-compiling busybox $v for arm64"
+  (
+    cd "$d" \
+      && curl -fsSL --max-time 300 "https://busybox.net/downloads/busybox-$v.tar.bz2" -o bb.tar.bz2 \
+      && ls -l bb.tar.bz2 \
+      && tar -xjf bb.tar.bz2 \
+      && cd "busybox-$v" \
+      && make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig >/dev/null \
+      && sed -i -e 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' \
+                -e 's/^CONFIG_STATIC=n$/CONFIG_STATIC=y/' .config \
+      && grep -q '^CONFIG_STATIC=y' .config \
+      && make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig >/dev/null \
+      && make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- >/dev/null
+  ) || return 1
+  verify_aarch64 "$d/busybox-$v/busybox" || return 1
+  install -m 0755 "$d/busybox-$v/busybox" "$IRD/bin/busybox"
+  echo "  busybox cross-compiled from source"
 }
 
 rm -rf "$IRD"
 mkdir -p "$IRD"/{bin,etc,proc,sys,dev,lib,lib64}
-if ! fetch_arm64_busybox; then
-  echo "FATAL: could not obtain an AArch64 static busybox" >&2
-  exit 1
-fi
-echo "initramfs busybox: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | tr -d ' \n') (e_machine, b700 = AArch64)"
+try_apt_arm64 || try_cross_compile || {
+  echo "FATAL: could not obtain an AArch64 static busybox" >&2; exit 1; }
+echo "initramfs busybox e_machine: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | tr -d ' \n') (b700 = AArch64)"
 
 for a in sh ls cat mount umount echo ip ifconfig udhcpd udhcpc \
          mdev sleep mkdir ln dmesg reboot poweroff; do
