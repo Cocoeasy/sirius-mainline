@@ -17,7 +17,7 @@ jobs:
             python3 python3-pip python3-venv git curl ca-certificates \
             btrfs-progs dosfstools e2fsprogs device-tree-compiler
 
-      - name: Install pmbootstrap from source (PyPI is yanked)
+      - name: Install pmbootstrap from source
         run: |
           git clone --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git pmb-src
           python3 -m venv "$HOME/venv"
@@ -25,7 +25,6 @@ jobs:
           pip install --upgrade pip
           pip install ./pmb-src
           echo "$HOME/venv/bin" >> "$GITHUB_PATH"
-          "$HOME/venv/bin/pmbootstrap" --version || true
 
       - name: Clone pmaports
         run: git clone --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmaports.git pmaports-upstream
@@ -36,19 +35,14 @@ jobs:
           cp -r pmaports/linux-postmarketos-qcom-sdm710  pmaports-upstream/device/testing/
           ls pmaports-upstream/device/testing/ | grep -E 'sirius|sdm710'
 
-      - name: Configure pmbootstrap
+      - name: Write pmbootstrap config
         run: |
-          pmbootstrap -y init || true
-          pmbootstrap config aports "$PWD/pmaports-upstream"
-          pmbootstrap config device "xiaomi-sirius"
-          pmbootstrap config ui "none"
-          pmbootstrap config user "user"
-          pmbootstrap config ssh_keys "false"
-          pmbootstrap config extra_space "0"
-          echo "--- effective config ---"
-          pmbootstrap config aports
-          pmbootstrap config device
-          pmbootstrap config ui
+          mkdir -p "$HOME/.config"
+          printf '[pmbootstrap]\naports = %s\ndevice = xiaomi-sirius\nui = none\nuser = user\nwork = %s\n' \
+            "$PWD/pmaports-upstream" "$HOME/.local/var/pmbootstrap" \
+            > "$HOME/.config/pmbootstrap_v3.cfg"
+          echo "--- config file ---"; cat "$HOME/.config/pmbootstrap_v3.cfg"
+          echo "--- effective ---"; pmbootstrap config aports; pmbootstrap config device; pmbootstrap config ui
 
       - name: Build kernel + device packages
         run: |
@@ -60,7 +54,7 @@ jobs:
 
       - name: Export artifacts
         run: |
-          pmbootstrap export
+          pmbootstrap export || true
           mkdir -p out
           cp -v "$HOME/.local/var/pmbootstrap/chroot_native/home/pmos/rootfs/"*.img out/ 2>/dev/null || true
           find "$HOME/.local/var/pmbootstrap" -name 'boot.img' -exec cp -v {} out/ \; 2>/dev/null || true
