@@ -97,7 +97,7 @@ echo "initramfs busybox e_machine: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | t
 
 for a in sh ls cat mount umount echo ip ifconfig udhcpd udhcpc \
          mdev sleep mkdir ln dmesg reboot poweroff \
-         readlink basename sync head tail true; do
+         readlink basename sync head tail true setsid tr; do
   ln -sf /bin/busybox "$IRD/bin/$a"
 done
 
@@ -143,8 +143,24 @@ if [ -d /sys/kernel/config ]; then
   mkdir -p "$G" 2>/dev/null || say "gadget: cannot create $G"
   echo 0x2717 > "$G/idVendor" 2>/dev/null || true
   echo 0xff48 > "$G/idProduct" 2>/dev/null || true
-  mkdir -p "$G/configs/c.1" "$G/functions/rndis.usb0" 2>/dev/null || true
-  ln -sf "$G/functions/rndis.usb0" "$G/configs/c.1/" 2>/dev/null || true
+  mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" 2>/dev/null || true
+  echo "sirius-initramfs-0001" > "$G/strings/0x409/serialnumber" 2>/dev/null || true
+  echo "sirius"                > "$G/strings/0x409/manufacturer" 2>/dev/null || true
+  echo "sirius initramfs"      > "$G/strings/0x409/product"     2>/dev/null || true
+  echo "acm+ncm"               > "$G/configs/c.1/strings/0x409/configuration" 2>/dev/null || true
+
+  # CDC-ACM gives a COM port on Windows using its in-box serial driver; CDC-NCM
+  # gives a network interface with the in-box NCM driver. Both install cleanly
+  # where the RNDIS driver does not (CM_PROB_FAILED_INSTALL).
+  for fn in acm.usb0 ncm.usb0; do
+    if mkdir -p "$G/functions/$fn" 2>/dev/null; then
+      ln -sf "$G/functions/$fn" "$G/configs/c.1/" 2>/dev/null || true
+      say "gadget: function $fn ready"
+    else
+      say "gadget: function $fn unavailable"
+    fi
+  done
+
   UDC=$(ls /sys/class/udc 2>/dev/null | head -1)
   if [ -n "$UDC" ]; then
     echo "$UDC" > "$G/UDC" 2>/dev/null && say "gadget: bound to UDC $UDC" || say "gadget: bind to $UDC failed"
@@ -152,8 +168,19 @@ if [ -d /sys/kernel/config ]; then
     say "gadget: NO UDC present -> USB PHY/dwc3 did not come up"
   fi
 fi
+
+# Serial shell over the CDC-ACM port (Windows: a COMx port).
+if [ -c /dev/ttyGS0 ]; then
+  say "console: shell on /dev/ttyGS0 (USB CDC-ACM)"
+  setsid /bin/sh -c 'exec /bin/sh </dev/ttyGS0 >/dev/ttyGS0 2>&1' &
+else
+  say "console: /dev/ttyGS0 missing"
+fi
+
+sleep 2
 ifconfig usb0 172.16.42.1 netmask 255.255.0.0 up 2>/dev/null || true
-say "Listening on 172.16.42.1 (telnetd :23)"
+say "network: usb0 -> 172.16.42.1 (telnetd :23)"
+say "usb0 state: $(ifconfig usb0 2>&1 | tr '\n' ' ')"
 
 dmesg | tail -n 60 >> "${LOG:-/dev/null}" 2>/dev/null
 dmesg | tail -n 15
