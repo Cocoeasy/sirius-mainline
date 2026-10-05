@@ -491,9 +491,22 @@
 
 &ufs_mem_hc {
 	status = "okay";
-	reset-gpios = <&tlmm 150 GPIO_ACTIVE_LOW>;
+
+	/*
+	 * The stock sirius device tree drives NO reset GPIO for UFS: its
+	 * pinctrl-0/pinctrl-1 ("dev-reset-assert"/"dev-reset-deassert") nodes
+	 * are empty, so the device reset is done by the bootloader/PMIC. The
+	 * reset-gpios = <&tlmm 150 ...> inherited from pyxis therefore asserts
+	 * a pin sirius does not use for UFS and the controller never links up
+	 * (UIC link state stays 0, "Initialization failed with error -5").
+	 * Stock also reports a single lane per direction, not two.
+	 */
+	lanes-per-direction = <1>;
+
 	vcc-supply = <&vreg_l4b_2p95>;
+	vcc-max-microamp = <600000>;
 	vccq2-supply = <&vreg_l8b_3p3>;
+	vccq2-max-microamp = <600000>;
 };
 
 &sdhc_2 {
