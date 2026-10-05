@@ -229,13 +229,15 @@ else
   ROOT_MOUNTED=no
   mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
   if [ "$ROOT_MOUNTED" = no ]; then
-    say "rootfs: $ROOTDEV not ext4 - formatting (first boot)"
-    # Call through busybox explicitly: mke2fs/switch_root are /sbin applets and
-    # must not rely on the --install -s symlinks being present.
-    /bin/busybox mke2fs -q -F -L sirius-root -t ext4 "$ROOTDEV" 2>&1 | tail -n 2 \
-      || /bin/busybox mke2fs -q -F -L sirius-root "$ROOTDEV" 2>&1 | tail -n 2 \
-      || say "rootfs: mke2fs failed"
+    say "rootfs: $ROOTDEV not formatted - creating ext filesystem (first boot)"
+    # busybox's mke2fs has no -t option (unlike e2fsprogs); it always creates
+    # an ext2 filesystem, which the kernel's ext4 driver mounts just fine.
+    /bin/busybox mke2fs -F -L sirius-root "$ROOTDEV" 2>&1 | tail -n 2
     mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
+    if [ "$ROOT_MOUNTED" = no ]; then
+      mount -t ext2 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
+    fi
+    [ "$ROOT_MOUNTED" = no ] && say "rootfs: mount after mkfs failed"
   fi
 
   if [ "$ROOT_MOUNTED" = no ]; then
