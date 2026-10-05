@@ -21,7 +21,8 @@ RAMDISK_ADDR = 0x01000000
 TAGS_ADDR = 0x00000100
 NAME = b"sirius"
 CMDLINE = (b"console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA90000 "
-           b"androidboot.hardware=qcom androidboot.console=ttyMSM0 loop.max_part=7 console=tty0")
+           b"androidboot.hardware=qcom androidboot.console=ttyMSM0 loop.max_part=7 console=tty0 "
+           b"clk_ignore_unused pd_ignore_unused")
 ZERO = b"\x00"
 
 
