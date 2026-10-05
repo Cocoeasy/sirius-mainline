@@ -192,11 +192,28 @@
 		regulator-boot-on;
 	};
 
-	disp_3p0_en: display-3p0-regulator {
+	/*
+	 * Panel VCI (3.0 V) enable. Verified against the vendor device tree of
+	 * this unit (recovery FDT): the EA8074 3.0 V rail is
+	 * /soc/disp_vci_vreg, a regulator-fixed on TLMM GPIO5 with
+	 * enable-active-high and regulator-boot-on. GPIO76 - which the pyxis
+	 * derived wiring used here - is qcom,panel-mode-gpio for the nt35597
+	 * panels and is not bound anywhere on the EA8074 path, so it must not
+	 * switch this rail.
+	 *
+	 * The vendor writes start-delay-us = <4000>. No C code reads that
+	 * property (drivers/regulator/fixed.c reads startup-delay-us), so the
+	 * delay never took effect downstream; the mainline property name below
+	 * applies the 4 ms for the first time.
+	 */
+	disp_vci_vreg: disp-vci-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "disp_3p0_en";
-		gpios = <&tlmm 76 GPIO_ACTIVE_HIGH>;
+		regulator-name = "disp_vci_vreg";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpios = <&tlmm 5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		startup-delay-us = <4000>;
 		regulator-boot-on;
 	};
 
@@ -570,15 +587,37 @@
 		compatible = "samsung,ea8074";
 		reg = <0>;
 
+		/* TE stays on TLMM GPIO10, exactly as the pinned msm binding and
+		 * the vendor display node have it. Verified against the pinned
+		 * sources: nothing in drm_panel.c, the msm DSI host/manager or
+		 * the panel drivers reads a "te-gpios" gpio descriptor. What
+		 * actually carries the signal is the pinmux below (gpio10 ->
+		 * mdp_vsync), which the DPU command-mode INTF tearcheck reads
+		 * (dpu_encoder_phys_cmd_tearcheck_config()). The property is
+		 * therefore binding documentation rather than driver input; it is
+		 * kept unchanged, and whether tearcheck can stall a frame without
+		 * a valid TE pulse is still unverified on hardware.
+		 */
 		te-gpios = <&tlmm 10 GPIO_ACTIVE_LOW>;
+		/* Physical reset waveform from the vendor array: LOW 2 ms, then
+		 * HIGH 11 ms. With GPIO_ACTIVE_LOW the driver drives logical 1
+		 * (= physical LOW) for 2 ms and logical 0 (= physical HIGH) for
+		 * 11 ms.
+		 */
 		reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&panel_default>;
 		pinctrl-1 = <&panel_sleep>;
 
-		vddio-supply = <&disp_3p0_en>;
-		vdd3p3-supply = <&vreg_l8b_3p3>;
+		/* The vendor panel-supply-entries list exactly two rails for this
+		 * panel: vddio 1.8 V (PM660 L11) and vci 3.0 V. There is no 3.3 V
+		 * rail, so the pyxis derived vdd3p3-supply is gone; the lab/ibb
+		 * phandles the vendor display node also carries are not required
+		 * supplies and are deliberately not wired up.
+		 */
+		vddio-supply = <&vreg_l11a_1p8>;
+		vci-supply = <&disp_vci_vreg>;
 
 		port {
 			panel_in: endpoint {

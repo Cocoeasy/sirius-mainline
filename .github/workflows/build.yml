@@ -1,21 +1,28 @@
 name: build-sirius
 
+# Manual runs only, and deliberately without inputs:
+#
+#  * The Linux source is pinned in `env.KERNEL_COMMIT` below and the build
+#    fails unless HEAD is exactly that commit, so there is no branch/tag/beta
+#    input that could silently build a different kernel.
+#  * The old "pack" and "dtb" modes are gone. They could pass a cached
+#    Image.gz off as a fresh display kernel; there is now exactly one mode,
+#    a full kernel + dtb build, always from the pinned source plus the panel
+#    patch.
 on:
   workflow_dispatch:
-    inputs:
-      kernel_ref:
-        description: "sdm670-mainline/linux branch or tag"
-        required: false
-        default: "on-stable"
-      mode:
-        description: "full = kernel+dtb; pack = reuse cached kernel and dtb; dtb = reuse cached kernel, rebuild dtb only"
-        required: false
-        default: "full"
-        type: choice
-        options:
-          - full
-          - pack
-          - dtb
+
+# Nothing is written back to the repository: read-only contents is enough.
+permissions:
+  contents: read
+
+env:
+  # Pinned upstream source (sdm670-mainline/linux), the tree the panel driver
+  # API and the SoC device trees were verified against.
+  KERNEL_COMMIT: 75d5a9875202673b11a8eac05e6f489ba0c87a05
+  # Pinned downstream source the EA8074 panel data was taken from. It is
+  # recorded for provenance only; nothing is fetched from it here.
+  PANEL_SOURCE_COMMIT: 06a01bad75939c58be53418f5d71d9d2e25634cf
 
 jobs:
   build:
@@ -29,105 +36,254 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential bc bison flex libssl-dev libelf-dev \
-            python3 cpio gzip xz-utils file bzip2 ccache \
+            python3 python3-venv cpio gzip xz-utils file bzip2 ccache \
+            device-tree-compiler \
             gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           aarch64-linux-gnu-gcc --version | head -1
           ccache --version | head -1
-          mkdir -p ~/.cache/sirius-busybox ~/.ccache
+          dtc --version
+          mkdir -p ~/.cache/sirius-busybox ~/.ccache out
+          # out/ and one diagnostic log exist from the very start, so the
+          # always-uploaded log artifact has content even if an early step
+          # fails, and so no later step has to create the directory.
+          : > out/diagnostic.log
+          {
+            aarch64-linux-gnu-gcc --version | head -1
+            dtc --version
+            python3 --version
+            dpkg-query -W -f='${Package} ${Version}\n' \
+              build-essential device-tree-compiler python3 ccache 2>/dev/null || true
+          } > out/tool-versions.txt
+          cat out/tool-versions.txt
+
+      # ---- read-only regressions, always first ----------------------------
+      # These are the interfaces the display work must not break: the EA8074
+      # fixture suite (118 checks) and the rootfs/boot safety suite (26
+      # checks). Neither touches the device, the fixture or the artifacts.
+      - name: Fixture regression (118 checks)
+        run: python3 scripts/test_ea8074_evidence.py
+
+      - name: Fixture consistency (hardware gate stays closed)
+        run: python3 scripts/validate_ea8074_evidence.py config/ea8074-evidence.json
+
+      - name: Rootfs regression (26 checks)
+        run: python3 scripts/test_existing_rootfs.py
 
       # ---- caches ---------------------------------------------------------
-      # ccache makes an unchanged kernel rebuild cheap; the kernel image cache
-      # lets the "pack" mode skip the kernel entirely (~2 min instead of ~18).
-      - name: Cache ccache
-        if: github.event.inputs.mode != 'pack'
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ccache-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config', 'dts/sdm710-xiaomi-sirius.dts') }}
-          restore-keys: |
-            ccache-${{ github.event.inputs.kernel_ref }}-
-            ccache-
-
-      # The kernel image does not depend on the device tree, so the device tree
-      # is deliberately NOT part of this key: a DTS-only change then still hits
-      # the cached Image.gz and only the dtb has to be rebuilt (mode=dtb).
-      - name: Restore built kernel image
-        id: kcache
-        uses: actions/cache/restore@v4
-        with:
-          path: carry
-          key: kernel-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config') }}
-
+      # The kernel image is never cached: every run compiles the pinned source
+      # plus the panel patch. ccache is keyed on the source commit and on the
+      # patch, config and board DTS hashes, so a changed input can never be
+      # served from an older object cache.
       - name: Restore arm64 busybox
         uses: actions/cache@v4
         with:
           path: ~/.cache/sirius-busybox
           key: busybox-arm64-${{ hashFiles('initramfs/build-initramfs.sh') }}
 
-      # ---- kernel ---------------------------------------------------------
-      - name: Build kernel image + dtbs
-        if: github.event.inputs.mode == 'full' && steps.kcache.outputs.cache-hit != 'true'
-        env:
-          ARCH: arm64
-          CROSS_COMPILE: "ccache aarch64-linux-gnu-"
-          CCACHE_DIR: "/home/runner/.ccache"
-          CCACHE_MAXSIZE: "2G"
-        run: |
-          ccache --zero-stats
-          git clone --depth=1 -b "${{ github.event.inputs.kernel_ref }}" https://gitlab.com/sdm670-mainline/linux.git kernel
-          cp dts/sdm710-xiaomi-sirius.dts kernel/arch/arm64/boot/dts/qcom/
-          MF=kernel/arch/arm64/boot/dts/qcom/Makefile
-          grep -q 'sdm710-xiaomi-sirius.dtb' "$MF" || \
-            printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$MF"
-          cd kernel
-          make defconfig
-          scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
-          scripts/kconfig/merge_config.sh -m .config ../config/sirius.config
-          make olddefconfig
-          make -j"$(nproc)" Image.gz dtbs
-          ls -l arch/arm64/boot/Image.gz arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb
-          ccache --show-stats
-          mkdir -p ../carry
-          cp arch/arm64/boot/Image.gz ../carry/
-          cp arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb ../carry/
-
-      - name: Save built kernel image
-        if: github.event.inputs.mode == 'full' && steps.kcache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+      - name: Restore ccache
+        uses: actions/cache@v4
         with:
-          path: carry
-          key: kernel-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config') }}
+          path: ~/.ccache
+          key: ccache-${{ env.KERNEL_COMMIT }}-${{ hashFiles('config/sirius.config', 'dts/sdm710-xiaomi-sirius.dts', 'patches/linux/*.patch') }}
+          restore-keys: |
+            ccache-${{ env.KERNEL_COMMIT }}-
 
-      - name: Rebuild device tree only
-        if: github.event.inputs.mode == 'dtb'
+      # ---- kernel source: pinned clone, patch, board DTS ------------------
+      - name: Fetch the pinned kernel commit
+        run: |
+          set -eu
+          git init -q kernel
+          cd kernel
+          git remote add origin https://gitlab.com/sdm670-mainline/linux.git
+          if git fetch --depth=1 origin "$KERNEL_COMMIT" 2>/dev/null; then
+            git checkout -q --detach FETCH_HEAD
+          else
+            echo "by-SHA fetch refused; fetching all heads without blobs"
+            git fetch --filter=blob:none --no-tags origin \
+              '+refs/heads/*:refs/remotes/origin/*'
+            git checkout -q --detach "$KERNEL_COMMIT"
+          fi
+          test "$(git rev-parse HEAD)" = "$KERNEL_COMMIT"
+          echo "kernel source HEAD: $(git rev-parse HEAD)"
+
+      - name: Apply the EA8074 panel patch and the board DTS
+        run: |
+          set -eu
+          cp -v dts/sdm710-xiaomi-sirius.dts kernel/arch/arm64/boot/dts/qcom/
+          MF=kernel/arch/arm64/boot/dts/qcom/Makefile
+          grep -q 'sdm710-xiaomi-sirius.dtb' "$MF" || \
+            printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$MF"
+          cd kernel
+          git apply --verbose ../patches/linux/0001-drm-panel-samsung-ea8074.patch
+          echo "panel patch applied to the pinned tree"
+          # The command-table comparison against the read-only fixture is a
+          # separate, explicit step below (it is deliberately not folded in
+          # here, because its result must be recorded even when it fails).
+
+      - name: Configure and assert the display/USB/storage built-ins
         env:
           ARCH: arm64
           CROSS_COMPILE: "ccache aarch64-linux-gnu-"
           CCACHE_DIR: "/home/runner/.ccache"
           CCACHE_MAXSIZE: "2G"
         run: |
-          git clone --depth=1 -b "${{ github.event.inputs.kernel_ref }}" https://gitlab.com/sdm670-mainline/linux.git kernel
-          cp dts/sdm710-xiaomi-sirius.dts kernel/arch/arm64/boot/dts/qcom/
-          MF=kernel/arch/arm64/boot/dts/qcom/Makefile
-          grep -q 'sdm710-xiaomi-sirius.dtb' "$MF" || \
-            printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$MF"
+          set -eu
           cd kernel
           make defconfig
           scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
           scripts/kconfig/merge_config.sh -m .config ../config/sirius.config
           make olddefconfig
-          make -j"$(nproc)" dtbs
-          cp arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb ../carry/
-          ls -l ../carry/
+          # Every one of these has to end up built in. DRM_MSM in particular
+          # would be silently downgraded to =m if one of its capabilities
+          # (QCOM_AOSS_QMP, QCOM_COMMAND_DB, QCOM_LLCC, QCOM_OCMEM) were left
+          # as a module, and a module cannot be loaded by the module-less
+          # initramfs.
+          #
+          # The list holds 28 CONFIG_* symbols, and 2 negative assertions
+          # follow it. Both numbers are printed, so a silent edit to the list
+          # shows up in the log instead of only in a comment.
+          SYMS="
+            CONFIG_DRM CONFIG_DRM_MSM CONFIG_DRM_MSM_DPU CONFIG_DRM_MSM_DSI
+            CONFIG_DRM_MSM_DSI_10NM_PHY CONFIG_DRM_PANEL
+            CONFIG_DRM_PANEL_SAMSUNG_EA8074 CONFIG_BACKLIGHT_CLASS_DEVICE
+            CONFIG_DRM_SIMPLEDRM CONFIG_DRM_FBDEV_EMULATION
+            CONFIG_FRAMEBUFFER_CONSOLE CONFIG_VT
+            CONFIG_QCOM_AOSS_QMP CONFIG_QCOM_COMMAND_DB CONFIG_QCOM_LLCC
+            CONFIG_PHY_QCOM_QUSB2 CONFIG_USB_GADGET CONFIG_USB_CONFIGFS
+            CONFIG_USB_CONFIGFS_ACM CONFIG_USB_CONFIGFS_NCM
+            CONFIG_USB_CONFIGFS_RNDIS CONFIG_USB_CONFIGFS_ECM
+            CONFIG_USB_CONFIGFS_F_FS
+            CONFIG_MMC_SDHCI_MSM CONFIG_SCSI_UFS_QCOM
+            CONFIG_PSTORE CONFIG_PSTORE_RAM CONFIG_PSTORE_CONSOLE
+          "
+          set -- $SYMS
+          echo "config symbols asserted =y : $#"
+          for sym in "$@"; do
+            grep -q "^$sym=y$" .config || {
+              echo "::error::$sym is not built in after olddefconfig"
+              grep -E "^$sym=" .config || echo "  (symbol absent from .config)"
+              exit 1
+            }
+          done
+          echo "negative assertions       : 2"
+          ! grep -q '^CONFIG_DRM_MSM=m$' .config
+          # OCMEM is deliberately not built (no ocmem node on this SoC); what
+          # matters for DRM_MSM=y is that it is not a module.
+          ! grep -q '^CONFIG_QCOM_OCMEM=m$' .config
+          echo "all $# required symbols are built in; both negative assertions hold"
 
-      - name: Stage kernel image into the tree layout
+      - name: Build kernel image + dtbs
+        env:
+          ARCH: arm64
+          CROSS_COMPILE: "ccache aarch64-linux-gnu-"
+          CCACHE_DIR: "/home/runner/.ccache"
+          CCACHE_MAXSIZE: "2G"
         run: |
-          [ -f carry/Image.gz ] || { echo "::error::no built kernel image available; run once with mode=full"; exit 1; }
-          mkdir -p kernel/arch/arm64/boot/dts/qcom
-          cp -v carry/Image.gz kernel/arch/arm64/boot/Image.gz
-          cp -v carry/sdm710-xiaomi-sirius.dtb kernel/arch/arm64/boot/dts/qcom/
+          set -eu
+          cd kernel
+          ccache --zero-stats
+          make -j"$(nproc)" Image.gz dtbs
+          ccache --show-stats
+          test -s arch/arm64/boot/Image.gz
+          DTB=arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb
+          test -s "$DTB"
+          # The board DTB really carries the panel node this driver binds to,
+          # and the driver really is linked into the image.
+          fdtget "$DTB" /soc@0/display-subsystem@ae00000/dsi@ae94000/panel@0 \
+            compatible | tr ' ' '\n' | grep -qx 'samsung,ea8074'
+          strings vmlinux | grep -q 'panel-samsung-ea8074' || {
+            echo "::error::the EA8074 panel driver is not linked into vmlinux"
+            exit 1
+          }
+          ls -l arch/arm64/boot/Image.gz "$DTB"
+          echo "kernel release: $(cat include/config/kernel.release)"
+
+      # ---- packet table + device tree schema gates -------------------------
+      # The command-table comparison records both directions honestly:
+      #   * strict mode fails on ANY data-type difference, including the 13
+      #     vendor 0x39 -> emitted 0x15 records the fixture documents, so its
+      #     non-zero result is recorded rather than hidden;
+      #   * report mode passes only while the observed deviation is exactly the
+      #     documented one, so an extra or missing deviation fails the job.
+      # The packet-type equivalence itself is NOT verified by either mode, and
+      # the manifest says so; only a vendor-comparable trace can settle it
+      # (fixture blocker B2).
+      - name: Command table vs fixture (strict + documented-deviation report)
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          DRIVER=kernel/drivers/gpu/drm/panel/panel-samsung-ea8074.c
+          python3 scripts/gen_ea8074_cmd_table.py --check-c "$DRIVER" \
+            > out/cmdtable-strict.txt 2>&1
+          strict_rc=$?
+          python3 scripts/gen_ea8074_cmd_table.py --check-c "$DRIVER" --report-diff \
+            > out/cmdtable-report-diff.txt 2>&1
+          report_rc=$?
+          count=$(grep -c 'TYPE-DIFF' out/cmdtable-report-diff.txt || true)
+          {
+            printf 'generator_strict_rc=%s\n' "$strict_rc"
+            printf 'generator_report_diff_rc=%s\n' "$report_rc"
+            printf 'documented_type_diff_records=%s\n' "$count"
+            printf 'packet_type_equivalence=NOT_VERIFIED\n'
+          } > out/checks.txt
+          cat out/checks.txt
+          echo "::warning::packet-type equivalence is NOT verified: $count vendor 0x39 records are emitted as 0x15 (fixture blocker B2, see out/cmdtable-report-diff.txt)"
+          if [ "$report_rc" -ne 0 ]; then
+            echo "::error::the emitted command table no longer matches the fixture-documented deviation set (payload, wait, order, count or an undocumented type change)"
+            sed -n '1,80p' out/cmdtable-report-diff.txt
+            exit 1
+          fi
+
+      # A real gate, scoped to the one binding this patch adds and to the one
+      # board DTB. A blanket dtbs_check over the whole qcom set is deliberately
+      # NOT used: it fails on vendor-unrelated schema noise and would tell us
+      # nothing about this panel binding. DT_SCHEMA_FILES keeps the run to our
+      # schema, and pipefail keeps `tee` from masking the exit code.
+      - name: DT schema gate (dt_binding_check + dtbs_check for samsung,ea8074)
+        env:
+          ARCH: arm64
+          DT_SCHEMA_FILES: Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          : > out/dt_binding_check.log
+          : > out/dtbs_check.log
+          python3 -m venv "$RUNNER_TEMP/dtvenv"
+          "$RUNNER_TEMP/dtvenv/bin/pip" install -q dtschema yamllint
+          "$RUNNER_TEMP/dtvenv/bin/pip" freeze > out/dtvenv-freeze.txt
+          # The dtschema distribution installs dt-mk-schema, dt-doc-validate,
+          # dt-validate, dt-extract-example, dt-cmp-schema, dt-check-compatible
+          # and dtb2py -- there is no "dtschema" console script, so asking that
+          # name for a version would only ever fail (and was previously masked
+          # by a "|| true"). Read the installed distribution metadata instead
+          # and prove the tools this build actually calls are present; neither
+          # check is allowed to fail silently.
+          "$RUNNER_TEMP/dtvenv/bin/python" -c "import importlib.metadata as md; print('dtschema', md.version('dtschema')); print('yamllint', md.version('yamllint')); print('scripts', ' '.join(sorted(e.name for e in md.distribution('dtschema').entry_points if e.group == 'console_scripts')))" | tee out/dtvenv-versions.txt
+          for tool in dt-mk-schema dt-doc-validate dt-validate; do
+            test -x "$RUNNER_TEMP/dtvenv/bin/$tool" || {
+              echo "::error::dtschema no longer provides $tool, which this step runs"
+              exit 1
+            }
+          done
+          # 1) the binding document itself has to compile into a valid schema.
+          PATH="$RUNNER_TEMP/dtvenv/bin:$PATH" make -C kernel ARCH=arm64 \
+            dt_binding_check DT_SCHEMA_FILES="$DT_SCHEMA_FILES" \
+            2>&1 | tee out/dt_binding_check.log
+          # 2) the built board DTB has to satisfy it. CHECK_DTBS with
+          #    DT_SCHEMA_FILES checks one DTB against one schema.
+          PATH="$RUNNER_TEMP/dtvenv/bin:$PATH" make -C kernel ARCH=arm64 \
+            CHECK_DTBS=y DT_SCHEMA_FILES="$DT_SCHEMA_FILES" \
+            qcom/sdm710-xiaomi-sirius.dtb 2>&1 | tee out/dtbs_check.log
+          {
+            printf 'dt_binding_check=pass\n'
+            printf 'dtbs_check=pass\n'
+            printf 'schema_scope=%s\n' "$DT_SCHEMA_FILES"
+          } > out/schema.txt
+          cat out/checks.txt out/schema.txt
 
       # ---- initramfs + boot image ----------------------------------------
+      # Unchanged from the verified setup: the boot packer and the DTBO/QCDT
+      # layout are not touched by this workflow.
       - name: Build initramfs and boot.img
         run: |
           bash initramfs/build-initramfs.sh
@@ -145,6 +301,55 @@ jobs:
             echo "::error::initramfs busybox is not a 64-bit AArch64 binary"; exit 1; }
           head -1 /tmp/ird/init
 
+      - name: Write provenance and SHA256 manifest
+        run: |
+          set -eu
+          cd "$GITHUB_WORKSPACE"
+          KR=$(cat kernel/include/config/kernel.release)
+          {
+            printf 'kernel source commit   : %s\n' "$KERNEL_COMMIT"
+            printf 'panel source commit    : %s\n' "$PANEL_SOURCE_COMMIT"
+            printf 'kernel release         : %s\n' "$KR"
+            printf 'panel patch sha256     : %s\n' "$(sha256sum patches/linux/0001-drm-panel-samsung-ea8074.patch | cut -d' ' -f1)"
+            printf 'sirius.config sha256   : %s\n' "$(sha256sum config/sirius.config | cut -d' ' -f1)"
+            printf 'board dts sha256       : %s\n' "$(sha256sum dts/sdm710-xiaomi-sirius.dts | cut -d' ' -f1)"
+            printf 'kernel .config sha256  : %s\n' "$(sha256sum kernel/.config | cut -d' ' -f1)"
+            printf 'command table          : %s\n' "$(tr '\n' ' ' < out/checks.txt)"
+            printf 'device tree schema     : %s\n' "$(tr '\n' ' ' < out/schema.txt)"
+            printf 'tool versions          : %s\n' "$(tr '\n' ' ' < out/tool-versions.txt | cut -c1-200)"
+            printf 'dt schema packages     : %s\n' "$(tr '\n' ' ' < out/dtvenv-versions.txt)"
+            printf 'packet equivalence     : NOT VERIFIED - the packet-type deviation is documented, not proven harmless\n'
+          } > out/provenance.txt
+          cp kernel/.config out/config
+          printf '%s\n' "$KR" > out/kernel-release
+          ( cd out && sha256sum \
+              boot.img Image.gz sdm710-xiaomi-sirius.dtb initramfs.cpio.gz \
+              config kernel-release provenance.txt checks.txt schema.txt \
+              tool-versions.txt dtvenv-versions.txt > manifest.txt )
+          cat out/provenance.txt
+          cat out/manifest.txt
+
+      # Every path that the boot artifact is supposed to contain is asserted
+      # here, individually, and only after every one of them has been written:
+      # provenance, kernel-release, config and manifest.txt come from the step
+      # above, so checking them any earlier would fail for the wrong reason.
+      # The upload action's if-no-files-found input is documented as deciding on
+      # the whole path list ("a path (or paths) ... result in no files being
+      # found"), so it cannot stand in for a per-file check; these explicit
+      # tests can.
+      - name: Assert every expected artifact exists
+        run: |
+          set -eu
+          for f in boot.img Image.gz sdm710-xiaomi-sirius.dtb \
+                   initramfs.cpio.gz config kernel-release provenance.txt \
+                   manifest.txt checks.txt schema.txt; do
+            if [ ! -s "out/$f" ]; then
+              echo "::error::expected artifact out/$f is missing or empty"
+              exit 1
+            fi
+          done
+          ls -l out
+
       - uses: actions/upload-artifact@v4
         with:
           name: sirius-boot
@@ -153,4 +358,34 @@ jobs:
             out/Image.gz
             out/sdm710-xiaomi-sirius.dtb
             out/initramfs.cpio.gz
+            out/config
+            out/kernel-release
+            out/provenance.txt
+            out/manifest.txt
+            out/checks.txt
+            out/schema.txt
           if-no-files-found: error
+
+      # Diagnostics are always uploaded, including for a failed run. A log
+      # artifact is not an assertion that anything passed, and the target
+      # artifact above stays the only place a boot image may come from.
+      # if-no-files-found is left at warn here: out/diagnostic.log is created
+      # in the first step, so this normally has content, but a failure inside
+      # setup should not add a second, unrelated error of its own.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sirius-logs
+          path: |
+            out/diagnostic.log
+            out/dt_binding_check.log
+            out/dtbs_check.log
+            out/cmdtable-strict.txt
+            out/cmdtable-report-diff.txt
+            out/checks.txt
+            out/schema.txt
+            out/tool-versions.txt
+            out/dtvenv-freeze.txt
+            out/dtvenv-versions.txt
+          if-no-files-found: warn
+          retention-days: 14

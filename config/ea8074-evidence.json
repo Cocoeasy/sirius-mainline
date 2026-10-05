@@ -1,0 +1,818 @@
+{
+  "fixture": "ea8074-display-evidence",
+  "device": {
+    "adb_serial": "d87ec275",
+    "model": "MI_8_SE",
+    "codename": "sirius",
+    "mode": "recovery",
+    "bootloader_product": "twrp_sirius"
+  },
+  "sources": [
+    {
+      "id": "fdt_live",
+      "evidence_type": "live_recovery_fdt",
+      "path": "/sys/firmware/fdt",
+      "size_bytes": 503401,
+      "sha256": "71407be4fd293d4f4803d36d63474314671fc59fd0f394a6071c90ab54bb4ea3",
+      "sha256_matches_task_pin": true,
+      "fdt_header": {
+        "magic": "0xd00dfeed",
+        "totalsize": 503401,
+        "off_dt_struct": 56,
+        "size_dt_struct": 456016,
+        "off_dt_strings": 456072,
+        "size_dt_strings": 47329,
+        "off_mem_rsvmap": 40,
+        "version": 17,
+        "last_comp_version": 16,
+        "boot_cpuid_phys": 0
+      },
+      "parse_integrity": {
+        "tokens_FDT_BEGIN_NODE": 2753,
+        "tokens_FDT_END_NODE": 2753,
+        "tokens_FDT_PROP": 15640,
+        "tokens_FDT_NOP": 0,
+        "tokens_FDT_END": 1,
+        "unknown_tokens": 0,
+        "node_count": 2753,
+        "phandle_count": 1382,
+        "struct_block_end": 456072,
+        "strings_block_end": 503401,
+        "contiguous_and_exact": true
+      },
+      "note": "Parsed in memory only; FDT was not written to disk. Node paths from the parser carry a doubled leading slash because the FDT root node name is an empty string."
+    },
+    {
+      "id": "sysfs_live",
+      "evidence_type": "live_recovery_sysfs",
+      "paths_read": [
+        "/sys/class/regulator/*/{name,state,microvolts,num_users}",
+        "/sys/class/gpio/gpiochip*",
+        "/proc/mounts",
+        "/sys/kernel/debug"
+      ]
+    },
+    {
+      "id": "mainline_gitlab",
+      "evidence_type": "pinned_source",
+      "remote": "https://gitlab.com/sdm670-mainline/linux",
+      "commit": "75d5a9875202673b11a8eac05e6f489ba0c87a05",
+      "commit_short": "75d5a9875202",
+      "commit_title": "Merge remote-tracking branch 'stable/linux-rolling-stable' into main-sdm670-stable",
+      "commit_date": "2026-07-06T15:48:54-04:00",
+      "commit_author": "Richard Acayan <mailingradian@gmail.com>",
+      "commit_is_merge": true,
+      "parent_ids": [
+        "6ecf2a5fe24af8a104814a3a9bc9b676b0bdffdf",
+        "8ca1f4c6fb1462ee120730ea75c19da10d2f2d6f"
+      ],
+      "project_id": 39804886,
+      "access": "anonymous_read_ok",
+      "files_used": [
+        "arch/arm64/boot/dts/qcom/sdm710-xiaomi-pyxis.dts",
+        "drivers/gpu/drm/panel/panel-samsung-ams639rq08.c",
+        "drivers/gpu/drm/drm_mipi_dsi.c"
+      ],
+      "absent_in_this_tree": [
+        "drivers/gpu/drm/msm/dsi/dsi_panel.c (does not exist; upstream moved to DRM panel framework)",
+        "any EA8074 panel driver under drivers/gpu/drm/panel/",
+        "arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dts (only pyxis exists upstream)"
+      ]
+    },
+    {
+      "id": "github_downstream",
+      "evidence_type": "pinned_source",
+      "remote": "https://github.com/SDM710-Development/android_kernel_xiaomi_sdm710",
+      "branch": "10.0-caf",
+      "commit_full_sha": "06a01bad75939c58be53418f5d71d9d2e25634cf",
+      "commit_subject": "[DNM]: Revert \"ARM64/configs: Enable CFI and LTO kernel options\"",
+      "commit_date": "2022-04-09T15:29:08Z",
+      "status": "read_ok_read_only",
+      "access": "Authenticated read-only gh API (account Cocoeasy, keyring-backed). Only two non-secret environment keys were supplied: APPDATA and GH_CONFIG_DIR. Config file contents and tokens were never read, copied, or written; no commit, push, or workflow was triggered.",
+      "prior_blocked_reason": "An earlier attempt reported 'You are not logged into any GitHub hosts'. That was an environment artefact: gh had no APPDATA and therefore could not locate its config directory. No credentials were fabricated and no authorization was bypassed at any point.",
+      "files_read": [
+        "arch/arm64/boot/dts/qcom/dsi-panel-ss-fhd-ea8074-cmd.dtsi",
+        "arch/arm64/boot/dts/qcom/sirius-sdm710.dtsi",
+        "arch/arm64/boot/dts/qcom/sirius-sdm710.dts",
+        "drivers/gpu/drm/msm/dsi-staging/dsi_panel.c",
+        "drivers/gpu/drm/msm/dsi-staging/dsi_pwr.c",
+        "drivers/gpu/drm/drm_mipi_dsi.c",
+        "drivers/gpu/drm/msm/dsi-staging/dsi_display.c",
+        "drivers/regulator/fixed.c"
+      ],
+      "retrieval_method": "GET /repos/{owner}/{repo}/contents/{path}?ref=<full_sha>, base64-decoded in memory; nothing was written to disk and the repository was not bulk-downloaded."
+    },
+    {
+      "id": "local_mainline_dts",
+      "evidence_type": "pinned_source",
+      "path_read_only": "H:/ubuntu/sirius-mainline/dts/sdm710-xiaomi-sirius.dts",
+      "evidence_scope": "snapshot_old",
+      "snapshot_note": "These observed_lines are the historical observation of the file BEFORE the display-rail fix was implemented in this worktree. They are kept verbatim on purpose and are NOT the current content of the file: the current content is recorded under current_worktree, together with a fresh sha256. The pinctrl gpio75/gpio76 difference below is a vendor-vs-mainline source-scope difference and is unrelated to the rail mapping.",
+      "note": "Read only at the time of the first survey; not modified by that survey. It recorded the (reported-incorrect) wiring that the fix replaced: the 3.0 V panel rail was enabled through tlmm GPIO76 with a 3.3 V vreg_l8b_3p3 as vddio, plus a vdd3p3-supply.",
+      "observed_lines": {
+        "195-198": "disp_3p0_en fixed regulator, known as display-3p0-regulator, gpios = <&tlmm 76 GPIO_ACTIVE_HIGH>",
+        "573": "te-gpios = <&tlmm 10 GPIO_ACTIVE_LOW>",
+        "574": "reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>",
+        "580": "vddio-supply = <&disp_3p0_en>",
+        "581": "vdd3p3-supply = <&vreg_l8b_3p3>",
+        "661,677": "pinctrl pins = \"gpio75\" only"
+      }
+    }
+  ],
+  "current_worktree": {
+    "note": "What the worktree actually contains now, as opposed to the historical snapshot in sources[local_mainline_dts]. Line numbers are 1-based in the CRLF file and every sha256 is of the file as it exists in this worktree; none of these files is claimed to have been compiled, linked or booted.",
+    "files": {
+      "dts/sdm710-xiaomi-sirius.dts": {
+        "sha256": "b0edb3b3899f00f1bbd5ca9441c62046e63c3bd441b600451891be7a4216a0f9",
+        "lines": {
+          "disp_vci_vreg": "\"disp_vci_vreg\": compatible = \"regulator-fixed\", regulator-name = \"disp_vci_vreg\", gpio = <&tlmm 5 GPIO_ACTIVE_HIGH>, regulator-min/max-microvolt = <3000000>, regulator-enable-ramp-delay = <233>, startup-delay-us = <4000>, enable-active-high, regulator-boot-on",
+          "panel_vddio_supply": "vddio-supply = <&vreg_l11a_1p8>, i.e. the PM660 (compatible = \"qcom,pm660-rpmh-regulators\", pmic-id = \"a\") L11 rail at 1.8 V - not a PM660L rail",
+          "panel_vci_supply": "vci-supply = <&disp_vci_vreg> (the 3.0 V fixed rail on tlmm GPIO5)",
+          "removed": "vdd3p3-supply and the old disp_3p0_en regulator on tlmm GPIO76 are gone; the vendor panel-supply-entries list is vddio 1.8 V + vci 3.0 V only",
+          "reset_te": "reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW> (logical 1 = physical LOW; the vendor waveform <0 2>, <1 11> is reproduced as logical1 2 ms then logical0 11 ms), te-gpios = <&tlmm 10 GPIO_ACTIVE_LOW>"
+        }
+      },
+      "config/sirius.config": {
+        "sha256": "9deaa92d77985419dc046a54ca847aa4c4e5e61d02a0e7fb05f79f9be2b15e5c",
+        "note": "Display stack built in (=y) instead of =m, because the test initramfs carries no modules: DRM_MSM_DPU, DRM_MSM_DSI, DRM_MSM_DSI_10NM_PHY, DRM_PANEL_SAMSUNG_EA8074 and BACKLIGHT_CLASS_DEVICE (that one has no default in the pinned Kconfig and is off in defconfig/sdm670.config, so a =y panel driver would otherwise be silently dropped), plus the DRM_MSM dependency helpers (QCOM_AOSS_QMP=y, QCOM_COMMAND_DB=y, QCOM_LLCC=y, QCOM_OCMEM=n)."
+      },
+      "patches/linux/0001-drm-panel-samsung-ea8074.patch": {
+        "sha256": "8d986b85c9d996daa89896e9be056b98ea3b76d1b1e310808efcfc959eb1034d",
+        "note": "Panel driver + binding; verified with git apply --check and a real git apply into a scratch copy of the pinned upstream commit 75d5a9875202673b11a8eac05e6f489ba0c87a05, where the applied driver is byte-identical to the reviewed source. It has never been compiled."
+      }
+    },
+    "rail_mapping_status": "resolved_pending_review",
+    "rail_mapping_note": "The mainline wiring now matches the pinned downstream source semantics: 3.0 V VCI through tlmm GPIO5 active-high with regulator-boot-on, 1.8 V vddio through PM660 L11. This is a source-level resolution only: it has not been built, reviewed independently, or verified on hardware."
+  },
+  "phandles": {
+    "tlmm_pinctrl_03400000": 50,
+    "mdss_dsi_ctrl0": 794,
+    "mdss_dsi_phy0": 796,
+    "panel_mdss_dsi_ss_fhd_ea8074_cmd": 1235,
+    "disp_vci_vreg": 1236,
+    "pm660_l11_vddio": 392,
+    "dsi_amoled_panel_pwr_supply": 1234,
+    "lcdb_ldo_lab": 1206,
+    "lcdb_ncp_ibb": 1207,
+    "pinctrl_panel_active": [1035, 1037],
+    "pinctrl_panel_suspend": [1036, 1038]
+  },
+  "display_node": {
+    "fdt_path": "/soc/qcom,dsi-display@17",
+    "compatible": "qcom,dsi-display",
+    "label": "dsi_ss_ea8074_fhd_cmd_display",
+    "qcom_display_type": "primary",
+    "qcom_dsi_panel_phandle": 1235,
+    "qcom_dsi_panel_resolves_to": "/soc/qcom,mdss_dsi_ss_fhd_ea8074_cmd",
+    "qcom_dsi_ctrl_phandle": 794,
+    "qcom_dsi_phy_phandle": 796,
+    "qcom_platform_reset_gpio": {
+      "raw_hex": "000000320000004b00000000",
+      "phandle": 50,
+      "gpio": 75,
+      "flag": 0,
+      "flag_meaning": "GPIO_ACTIVE_HIGH (vendor raw-level semantics)"
+    },
+    "qcom_platform_te_gpio": {
+      "raw_hex": "000000320000000a00000000",
+      "phandle": 50,
+      "gpio": 10,
+      "flag": 0
+    },
+    "qcom_platform_en_gpio": {
+      "present": false,
+      "checked": "Full 18-property list of /soc/qcom,dsi-display@17 and a whole-tree scan of all property names containing 'en-gpio'/'en_gpio' and all names containing 'platform-'."
+    },
+    "pinctrl_names": ["panel_active", "panel_suspend"],
+    "pinctrl_0_panel_active": [
+      "/soc/pinctrl@03400000/pmx_sde/sde_dsi_active",
+      "/soc/pinctrl@03400000/pmx_sde_te/sde_te_active"
+    ],
+    "pinctrl_1_panel_suspend": [
+      "/soc/pinctrl@03400000/pmx_sde/sde_dsi_suspend",
+      "/soc/pinctrl@03400000/pmx_sde_te/sde_te_suspend"
+    ],
+    "vci_supply_phandle": 1236,
+    "vddio_supply_phandle": 392,
+    "lab_supply_phandle": 1206,
+    "ibb_supply_phandle": 1207
+  },
+  "pinctrl_states": {
+    "sde_dsi_active": {
+      "mux": {"function": "gpio", "pins": ["gpio75", "gpio76"]},
+      "config": {"pins": ["gpio75", "gpio76"], "drive-strength": 8, "bias-disable": true}
+    },
+    "sde_dsi_suspend": {
+      "mux": {"function": "gpio", "pins": ["gpio75", "gpio76"]},
+      "config": {"pins": ["gpio75", "gpio76"], "drive-strength": 2, "bias-pull-down": true}
+    },
+    "sde_te_active": {
+      "mux": {"function": "mdp_vsync", "pins": ["gpio10"]},
+      "config": {"pins": ["gpio10"], "drive-strength": 2, "bias-pull-down": true}
+    },
+    "sde_te_suspend": {
+      "mux": {"function": "mdp_vsync", "pins": ["gpio10"]},
+      "config": {"pins": ["gpio10"], "drive-strength": 2, "bias-pull-down": true}
+    }
+  },
+  "gpio_role_resolution": {
+    "gpio5": {
+      "role": "display VCI rail enable",
+      "owner_fdt_node": "/soc/disp_vci_vreg",
+      "property": "gpio",
+      "raw_hex": "000000320000000500000000",
+      "phandle": 50,
+      "gpio": 5,
+      "flag": 0,
+      "enable_active_high": true,
+      "regulator_boot_on": true,
+      "start_delay_us": 4000,
+      "regulator_name": "disp_vci_vreg",
+      "compatible": "regulator-fixed",
+      "whole_tree_reference_count_for_tlmm_gpio5": 1,
+      "note": "This is the ONLY reference to tlmm GPIO5 anywhere in the device tree."
+    },
+    "gpio76": {
+      "role": "panel-mode-gpio (dual/single DSI mode select) for nt35597-class panels only",
+      "property_that_binds_it": "qcom,panel-mode-gpio",
+      "bound_on_nodes": [
+        "/soc/qcom,mdss_dsi_nt35597_wqxga_video_truly",
+        "/soc/qcom,mdss_dsi_nt35597_truly_wqxga_cmd",
+        "/soc/qcom,mdss_dsi_nt35597_dsc_cmd_truly",
+        "/soc/qcom,mdss_dsi_nt35597_dsc_video_truly",
+        "/soc/qcom,mdss_dsi_nt35597_wqxga_video",
+        "/soc/qcom,mdss_dsi_nt35597_wqxga_cmd",
+        "/soc/qcom,dsi-display@0",
+        "/soc/qcom,dsi-display@1",
+        "/soc/qcom,dsi-display@2",
+        "/soc/qcom,dsi-display@3",
+        "/soc/qcom,dsi-display@10",
+        "/soc/qcom,dsi-display@11",
+        "/soc/qcom,dsi-display@19",
+        "/soc/qcom,dsi-display@20"
+      ],
+      "bound_on_ea8074_nodes": false,
+      "raw_hex_where_bound": "000000320000004c00000000",
+      "note": "dsi-display@17 and qcom,mdss_dsi_ss_fhd_ea8074_cmd do NOT carry qcom,panel-mode-gpio. GPIO76 appears in sde_dsi_active/suspend only because that pinctrl state is shared with the nt35597 panels."
+    },
+    "conclusion": "GPIO5 and GPIO76 do NOT compete for the same role. VCI enable is GPIO5. GPIO76 is a dual-DSI mode-select line with no EA8074 binding. Also confirmed: no qcom,platform-en-gpio property exists anywhere in this device tree; the only platform-*gpio names present are qcom,platform-reset-gpio and qcom,platform-te-gpio."
+  },
+  "panel": {
+    "fdt_path": "/soc/qcom,mdss_dsi_ss_fhd_ea8074_cmd",
+    "qcom_mdss_dsi_panel_name": "ss fhd cmd dsi panel",
+    "qcom_mdss_dsi_panel_model": "SS-FHD-EA8074-CMD-PANEL",
+    "qcom_mdss_dsi_panel_type": "dsi_cmd_mode",
+    "qcom_mdss_dsi_bpp": 24,
+    "qcom_mdss_dsi_bpp_meaning": "RGB888",
+    "lanes_active": [0, 1, 2, 3],
+    "lane_count": 4,
+    "qcom_mdss_dsi_traffic_mode": "burst_mode",
+    "qcom_mdss_dsi_dma_trigger": "trigger_sw",
+    "qcom_mdss_dsi_mdp_trigger": "none",
+    "qcom_mdss_dsi_virtual_channel_id": 0,
+    "te": {
+      "qcom_mdss_dsi_te_pin_select": 1,
+      "qcom_mdss_dsi_te_using_te_pin": true,
+      "qcom_mdss_dsi_te_check_enable": true,
+      "qcom_mdss_dsi_te_dcs_command": 1,
+      "warning": "qcom,mdss-dsi-te-dcs-command is a u32 scalar (value 1), NOT a command byte array. It must not be run through the 7-byte-per-record command parser."
+    },
+    "reset_sequence": {
+      "raw_hex": "0000000000000002000000010000000b",
+      "pairs_value_delay_ms": [[0, 2], [1, 11]],
+      "physical_levels": "reset LOW for 2 ms, then reset HIGH for 11 ms",
+      "physical_level_active_low_semantics": "level 0 = reset asserted (active), level 1 = reset released",
+      "qcom_platform_reset_gpio_dt_flag": 0,
+      "mainline_convention_cross_check": {
+        "source": "drivers/gpu/drm/panel/panel-samsung-ams639rq08.c @ 75d5a9875202673b11a8eac05e6f489ba0c87a05",
+        "dt_binding_used": "reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>",
+        "gpiod_get_flags": "GPIOD_OUT_HIGH",
+        "lines_47_51": "gpiod_set_value_cansleep(ctx->reset_gpio, 1); ...delay...; gpiod_set_value_cansleep(ctx->reset_gpio, 0);",
+        "implied_physical_sequence": "logical 1 with GPIO_ACTIVE_LOW = physical LOW (asserted); logical 0 = physical HIGH (released)",
+        "matches_vendor_physical_sequence": true,
+        "explanation": "The vendor reset-sequence values are raw physical levels; mainline expresses the same physical LOW->HIGH transition with an ACTIVE_LOW descriptor and inverted logical values. Both agree on the physical waveform."
+      }
+    },
+    "esd_err_irq_gpio": {
+      "raw_hex": "000000320000007a00002002",
+      "phandle": 50,
+      "gpio": 122,
+      "flag": 8194
+    },
+    "brightness_properties": {
+      "qcom_mdss_dsi_bl_pmic_control_type": "bl_ctrl_dcs",
+      "qcom_mdss_brightness_max_level": 1023,
+      "qcom_mdss_dsi_bl_max_level": 1023,
+      "qcom_mdss_dsi_bl_min_level": 1,
+      "qcom_mdss_dsi_bl_dcs_type_ss": true,
+      "qcom_bl_update_flag": "delay_until_first_frame",
+      "level_encoding": "Unsigned 10-bit level, valid range 1..1023 (bl-min-level 1, bl-max-level 1023, brightness-max-level 1023). Sent as a 2-byte DCS 0x51 payload with the most significant byte first.",
+      "initial_low_brightness": {
+        "doze_lbm_level": 10,
+        "doze_hbm_level": 133,
+        "source": "downstream dsi-panel-ss-fhd-ea8074-cmd.dtsi L69-70 (qcom,disp-doze-lbm-backlight = <10>, qcom,disp-doze-hbm-backlight = <133>)",
+        "note": "No initial/default level property is parsed by the downstream dsi_panel.c; the level comes from the backlight device. 10 is the lowest explicitly defined low-brightness value for this panel, and 1 is the minimum legal level."
+      },
+      "dc_dimming_lut": "downstream EA8074 dtsi L71-94 defines qcom,disp-dc-dim-lut as 21 brightness/alpha pairs from 0 -> 0xFF down to 320 -> 0x0, with dc-threshold 320.",
+      "qcom_mdss_dsi_bl_dcs_type_ss_semantics": "Not resolvable from the available source: absent from the downstream EA8074 dtsi and unparsed by this revision of dsi_panel.c/dsi_panel.h (0 hits). The decided byte order comes from qcom,mdss-dsi-bl-inverted-dbv instead.",
+      "dcs_0x51_in_init_sequence": true,
+      "dcs_0x51_note": "The preserved 204-byte on-command array contains a type 0x39 long write with payload 51 00 00, setting brightness to zero during initialization. This is independently decoded from init_commands.on.bytes_hex. Subsequent nonzero brightness uses the backlight path; preserve the zero-brightness initialization write and do not treat a doze LBM value as a normal initial brightness default."
+    }
+  },
+  "timing": {
+    "fdt_path": "/soc/qcom,mdss_dsi_ss_fhd_ea8074_cmd/qcom,mdss-dsi-display-timings/timing@0",
+    "qcom_mdss_dsi_panel_width": 1080,
+    "qcom_mdss_dsi_panel_height": 2244,
+    "qcom_mdss_dsi_panel_framerate": 60,
+    "qcom_mdss_dsi_h_front_porch": 48,
+    "qcom_mdss_dsi_h_back_porch": 48,
+    "qcom_mdss_dsi_h_pulse_width": 16,
+    "qcom_mdss_dsi_v_front_porch": 28,
+    "qcom_mdss_dsi_v_back_porch": 28,
+    "qcom_mdss_dsi_v_pulse_width": 12,
+    "qcom_mdss_dsi_panel_phy_timings_hex": "002208092523090906030400",
+    "display_topology": [1, 0, 1],
+    "default_topology_index": 0,
+    "all_values_match_task_pin": true
+  },
+  "init_commands": {
+    "record_format": {
+      "header_bytes": 7,
+      "fields": ["dtype", "last", "vc", "ack", "wait_ms_u8", "dlen_hi", "dlen_lo"],
+      "then": "dlen payload bytes",
+      "scope": "Applied only to qcom,mdss-dsi-on-command, qcom,mdss-dsi-off-command and the other qcom,mdss-dsi-*-command display-parameter arrays."
+    },
+    "on": {
+      "property": "qcom,mdss-dsi-on-command",
+      "length_bytes": 204,
+      "record_count": 21,
+      "parser_consumed_all_bytes": true,
+      "bytes_hex": "050100000a00021100390000000000052b000008c339000000000003f05a5a39000000000008eff031003331143539000000000002b00139000000000002bb0339000000000002b04f39000000000002cb0039000000000002b06b39000000000002cb0039000000000002f70339000000000002b00239000000000005d50217541439000000000002b00539000000000002b11039010000000003f0a5a539000000000002350039000000000003510000390000000000025320390100006e00025500050100000000022900",
+      "sha256": "1c25248bc7206c438080a8c7958f3196a9d1426ded9dca592f644b71c987e594",
+      "sha256_algorithm": "sha256",
+      "sha1_algorithm": "sha1",
+      "hash_note": "sha256 and sha1 are both digests of the identical raw bytes_hex above; the algorithms are distinct and are not interchangeable."
+    },
+    "off": {
+      "property": "qcom,mdss-dsi-off-command",
+      "length_bytes": 18,
+      "record_count": 2,
+      "parser_consumed_all_bytes": true,
+      "bytes_hex": "050100002500022800050100007900021000",
+      "sha256": "1d4f64f5b407e84e631e4f3691c2a8823482f2b3b337c1b7587f787c39aea82d",
+      "sha1": "6aa4102d48e48b33daf60cfe446ba9e61644005b",
+      "sha256_algorithm": "sha256",
+      "sha1_algorithm": "sha1",
+      "hash_note": "sha256 and sha1 are both digests of the identical raw bytes_hex above; the algorithms are distinct and are not interchangeable."
+    },
+    "off_decoded": [
+      {"dtype": "0x05", "last": 1, "vc": 0, "ack": 0, "wait_ms": 37, "dlen": 2, "payload_hex": "2800", "dcs": "0x28 display off"},
+      {"dtype": "0x05", "last": 1, "vc": 0, "ack": 0, "wait_ms": 121, "dlen": 2, "payload_hex": "1000", "dcs": "0x10 enter sleep mode"}
+    ]
+  },
+  "power": {
+    "panel_supply_entries": {
+      "node": "/soc/dsi_amoled_panel_pwr_supply",
+      "entry_count": 2,
+      "entries": [
+        {
+          "reg": 0,
+          "qcom_supply_name": "vddio",
+          "min_uv": 1800000,
+          "max_uv": 1800000,
+          "enable_load": 62000,
+          "disable_load": 80
+        },
+        {
+          "reg": 1,
+          "qcom_supply_name": "vci",
+          "min_uv": 3000000,
+          "max_uv": 3000000,
+          "enable_load": 62000,
+          "disable_load": 80,
+          "post_on_sleep_ms": 10,
+          "pre_off_sleep_ms": 10
+        }
+      ]
+    },
+    "vddio_rail": {
+      "fdt_node": "/soc/rpmh-regulator-ldoa11/regulator-pm660-l11",
+      "voltage_uv": 1800000,
+      "live_sysfs": {
+        "path": "/sys/class/regulator/regulator.18",
+        "name": "pm660_l11",
+        "state": "disabled",
+        "microvolts": 1800000,
+        "num_users": 0
+      }
+    },
+    "vci_rail": {
+      "fdt_node": "/soc/disp_vci_vreg",
+      "compatible": "regulator-fixed",
+      "regulator_name": "disp_vci_vreg",
+      "gpio_phandle": 50,
+      "gpio": 5,
+      "gpio_flag": 0,
+      "enable_active_high": true,
+      "regulator_boot_on": true,
+      "start_delay_us": 4000,
+      "has_min_max_microvolt_properties": false,
+      "voltage_uv_from_panel_supply_entry": 3000000,
+      "live_sysfs": {
+        "path": "/sys/class/regulator/regulator.64",
+        "name": "disp_vci_vreg",
+        "state": "disabled",
+        "microvolts": null,
+        "num_users": 0,
+        "microvolts_empty_reason": "regulator-fixed without regulator-min/max-microvolt exposes no microvolts attribute value"
+      }
+    },
+    "lab_ibb": {
+      "referenced_by_dsi_display_17": true,
+      "lab_supply_fdt_node": "/soc/qcom,spmi@c440000/qcom,pm660l@3/qpnp-lcdb@ec00/ldo",
+      "ibb_supply_fdt_node": "/soc/qcom,spmi@c440000/qcom,pm660l@3/qpnp-lcdb@ec00/ncp",
+      "in_panel_supply_entries": false,
+      "directive": "Do NOT add LAB/IBB to the required bring-up supplies; they are not part of qcom,panel-supply-entries for this panel.",
+      "live_regulator_class_entries": "none (no lab/ibb/lcdb regulator registered in the recovery kernel)"
+    },
+    "mainline_discrepancies": [
+      {
+        "evidence_scope": "snapshot_old",
+        "local_dts_before_fix": "dts/sdm710-xiaomi-sirius.dts:198 gpios = <&tlmm 76 GPIO_ACTIVE_HIGH> (disp_3p0_en)",
+        "vendor_fdt": "the 3.0 V VCI enable is /soc/disp_vci_vreg on tlmm GPIO5; GPIO76 is qcom,panel-mode-gpio for nt35597 panels and is not bound on the EA8074 path",
+        "verdict": "GPIO conflict: mainline GPIO76 is unsupported by the vendor device tree",
+        "status": "fixed_in_worktree_pending_review",
+        "current_worktree": "disp_vci_vreg now uses gpio = <&tlmm 5 GPIO_ACTIVE_HIGH>; the GPIO76 regulator is gone. See current_worktree and blocker B1 (resolved_pending_review)."
+      },
+      {
+        "evidence_scope": "snapshot_old",
+        "local_dts_before_fix": "dts/sdm710-xiaomi-sirius.dts:580 vddio-supply = <&disp_3p0_en>; :581 vdd3p3-supply = <&vreg_l8b_3p3>",
+        "vendor_fdt": "panel-supply-entries names only vddio (1.8 V, PM660 L11 - the panel vddio rail lives under the PM660 node, compatible \"qcom,pm660-rpmh-regulators\", not under PM660L) and vci (3.0 V); there is no 3.3 V rail in the panel supply entries",
+        "verdict": "3.3 V rail on vdd3p3-supply has no counterpart in the vendor EA8074 supply entries; the 3.0 V enable rail is named vci in the vendor entries, not vddio",
+        "status": "fixed_in_worktree_pending_review",
+        "current_worktree": "vddio-supply = <&vreg_l11a_1p8> and vdd3p3-supply is removed. See current_worktree and blocker B1 (resolved_pending_review)."
+      }
+    ]
+  },
+  "live_debug_state": {
+    "regulator_class_entries_scanned": 73,
+    "display_relevant_regulators": [
+      {"path": "/sys/class/regulator/regulator.64", "name": "disp_vci_vreg", "state": "disabled", "num_users": 0},
+      {"path": "/sys/class/regulator/regulator.18", "name": "pm660_l11", "state": "disabled", "microvolts": 1800000, "num_users": 0}
+    ],
+    "gpio_observability": {
+      "debugfs_gpio_readable": false,
+      "reason": "/sys/kernel/debug is not mounted (no debugfs entry in /proc/mounts) and /sys/kernel/debug/gpio does not exist. Mounting debugfs is outside the permitted operation set.",
+      "sys_class_gpio_present": true,
+      "gpiochip0": {"label": "3400000.pinctrl", "base": 0, "ngpio": 150},
+      "tlmm_identity_confirmed": "gpiochip0 (3400000.pinctrl, base 0) corresponds to the FDT node /soc/pinctrl@03400000 (phandle 50), so FDT <&tlmm N> maps to gpiochip0 line N for GPIO 5/75/76.",
+      "pre_exported_lines": "none",
+      "note": "Live per-line direction/value was therefore NOT observable without exporting lines, which was not performed."
+    }
+  },
+  "resolved": [
+    {
+      "item": "dsi-display@17 -> qcom,dsi-panel -> panel node",
+      "status": "confirmed",
+      "detail": "phandle 1235 resolves to /soc/qcom,mdss_dsi_ss_fhd_ea8074_cmd"
+    },
+    {
+      "item": "VCI enable GPIO identity",
+      "status": "confirmed",
+      "detail": "tlmm GPIO5 via /soc/disp_vci_vreg, enable-active-high, regulator-boot-on, start-delay-us 4000. GPIO5 has exactly one reference in the whole tree."
+    },
+    {
+      "item": "GPIO5 vs GPIO76 role conflict",
+      "status": "resolved_no_conflict",
+      "detail": "GPIO5 = VCI enable; GPIO76 = qcom,panel-mode-gpio (nt35597 only). Mainline's GPIO76-for-VCI wiring is not supported by the vendor device tree."
+    },
+    {
+      "item": "qcom,platform-en-gpio presence",
+      "status": "confirmed_absent",
+      "detail": "No such property exists. The only platform-*gpio names in the whole tree are qcom,platform-reset-gpio and qcom,platform-te-gpio; the only *-en-gpio anywhere is qcom,aux-en-gpio on dp_display@0."
+    },
+    {
+      "item": "reset GPIO and TE GPIO",
+      "status": "confirmed",
+      "detail": "reset = tlmm GPIO75 (flag 0), te = tlmm GPIO10 (flag 0), on both dsi-display@17 and the panel node."
+    },
+    {
+      "item": "reset physical waveform",
+      "status": "confirmed",
+      "detail": "reset-sequence (0, 2 ms) then (1, 11 ms) = physical LOW 2 ms then HIGH 11 ms; mainline ACTIVE_LOW + logical 1->0 reproduces the same physical waveform."
+    },
+    {
+      "item": "timing / mode parameters",
+      "status": "confirmed",
+      "detail": "cmd mode, RGB888 (bpp 24), 4 lanes, 1080x2244 @ 60 Hz, hfp 48 hbp 48 hsw 16, vfp 28 vbp 28 vsw 12 - all match the task pin."
+    },
+    {
+      "item": "on/off command arrays",
+      "status": "confirmed",
+      "detail": "204 bytes / 21 records and 18 bytes / 2 records; the 7-byte-header parser consumed both arrays exactly."
+    },
+    {
+      "item": "panel supply entries",
+      "status": "confirmed",
+      "detail": "Only vddio 1.8 V (PM660 L11: vreg_l11a_1p8 sits in the regulators-0 node, compatible \"qcom,pm660-rpmh-regulators\", not in the PM660L regulators-1 node) and vci 3.0 V. LAB/IBB are referenced by dsi-display@17 but are not required supplies."
+    },
+    {
+      "item": "EA8074 brightness DCS 0x51 byte order",
+      "status": "resolved",
+      "detail": "Resolved from EA8074-specific downstream source (commit 06a01bad75939c58be53418f5d71d9d2e25634cf), not from the mainline helper and not from the AMS639RQ08 driver. dsi_panel.c L881-884 byte-swaps bl_lvl when qcom,mdss-dsi-bl-inverted-dbv is present, then calls mipi_dsi_dcs_set_display_brightness(); that helper (drm_mipi_dsi.c L1055-1067) packs { brightness & 0xff, brightness >> 8 } (little-endian). The EA8074 dtsi L47 DOES set qcom,mdss-dsi-bl-inverted-dbv, so the swap and the little-endian packing cancel into MSB-first. Net wire payload after DCS 0x51 = [MSB, LSB] = big-endian / most-significant-byte-first.",
+      "derivation": "Let V = 0xHHLL. Swap: ((V & 0xff) << 8) | (V >> 8) = 0xLLHH. Pack little-endian: payload = [0xLLHH & 0xff, 0xLLHH >> 8] = [0xHH, 0xLL] = MSB then LSB.",
+      "mainline_equivalent": "This is the same wire order that mipi_dsi_dcs_set_display_brightness_large() produces; a mainline EA8074 driver must therefore emit 0x51 with the most significant byte first and must NOT additionally byte-swap.",
+      "must_not_guess": false
+    },
+    {
+      "item": "Display rail enable/disable ORDER and inter-rail delays",
+      "status": "resolved",
+      "detail": "Resolved from downstream dsi_pwr.c L136-183 (commit 06a01bad75939c58be53418f5d71d9d2e25634cf). Enable iterates the supply table forward (i = 0 .. count-1): set_load(enable_load) -> set_voltage(min,max) -> regulator_enable -> msleep(post_on_sleep). Disable iterates in reverse (i = count-1 .. 0): msleep(pre_off_sleep) -> set_load(disable_load) -> regulator_disable. The EA8074 table is entry@0 vddio (1.8 V, no sleeps) then entry@1 vci (3.0 V, post-on-sleep 10 ms, pre-off-sleep 10 ms). ENABLE order: vddio then vci, followed by a 10 ms sleep. DISABLE order: 10 ms sleep, then vci, then vddio."
+    },
+    {
+      "item": "Reset GPIO physical waveform and polarity convention",
+      "status": "resolved",
+      "detail": "Downstream dsi_panel.c L2505-2507 obtains the line via of_get_named_gpio(\"qcom,platform-reset-gpio\") and L489-506 drives it with the raw sequence levels through legacy gpio_set_value(). The vendor DT flag is 0 (GPIO_ACTIVE_HIGH), so the sequence levels map 1:1 onto physical levels: <0 2>, <1 11> = physical LOW 2 ms then HIGH 11 ms. A mainline driver using reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW> reaches the same physical waveform by writing logical 1 (assert, physical LOW) then logical 0 (release, physical HIGH). The invariant is the physical waveform; the flag only changes the logical encoding."
+    },
+    {
+      "item": "GPIO5 fixed-regulator delay property",
+      "status": "resolved",
+      "detail": "Both the downstream (drivers/regulator/fixed.c L85) and mainline (L194) fixed-regulator drivers read startup-delay-us. The vendor DT writes start-delay-us = <4000> on disp_vci_vreg (sirius-sdm710.dtsi L54). A repo-wide code search for \"start-delay-us\" returns total_count 3 and all three hits are DTS files (grus-sdm710.dtsi, sirius-sdm710.dtsi, pyxis-cosmos-sdm710-common.dtsi) - no C source reads it. Therefore the vendor 4000 us delay is inert and never applied, even in the vendor kernel. A mainline DT must use startup-delay-us = <4000> for the delay to take effect."
+    }
+  ],
+  "unresolved": [
+    {
+      "item": "qcom,mdss-dsi-bl-dcs-type-ss semantics",
+      "status": "unresolved",
+      "detail": "This property is present as a boolean on the live panel node (see panel.brightness_properties), but it is absent from the downstream EA8074 dtsi in this commit and a grep of the downstream dsi_panel.c and dsi_panel.h returns 0 hits for dcs-type-ss / dcs_type_ss / bl-dcs. So it is not consumed by this dsi_panel.c revision; its behaviour is not established from the available source. It is not required for the known bring-up path (byte order is already determined by qcom,mdss-dsi-bl-inverted-dbv)."
+    },
+    {
+      "item": "Where the mainline 2 ms / 11 ms reset timing is encoded",
+      "status": "unresolved",
+      "detail": "compatible = \"samsung,ea8074\" in the local DTS has no matching upstream driver in sdm670-mainline/linux at 75d5a9875202, and no reset delay properties are carried in the panel node. The 2/11 ms values exist only in the vendor FDT."
+    },
+    {
+      "item": "Live GPIO5 / GPIO75 / GPIO76 pin state",
+      "status": "unresolved",
+      "detail": "Not observable: debugfs is not mounted, no lines are pre-exported, and exporting lines was outside the permitted operation set. This concerns the pre-fix wiring observation; it is not re-derived from the current worktree."
+    },
+    {
+      "item": "Whether the EA8074 accepts the 13 long-write records as 0x15 short writes",
+      "status": "unresolved",
+      "detail": "The vendor declares 13 on-array records as data type 0x39 with a 2-byte payload (dtsi L117-L131) and the pinned mainline API emits a length-2 DCS write as 0x15 (drm_mipi_dsi.c L920-944). The payload bytes and waits are identical, but the packet type is not, and only the panel can decide whether that is accepted. Not verified: no trace was captured and no hardware was driven. Tracked as blocker B2 and recorded in packet_type_deviation."
+    }
+  ],
+  "hardware_test_ready": false,
+  "hardware_test_ready_reason": "The three evidence criteria are satisfied (supply/enable GPIO identity from the pinned downstream source, the reset/power ordering, and the MSB-first 0x51 byte order), and the display-rail mapping the reason used to cite is no longer an open problem: the worktree now enables the 3.0 V VCI rail through tlmm GPIO5 active-high with regulator-boot-on and takes vddio from PM660 L11 at 1.8 V, matching the pinned source (see current_worktree; B1 is resolved_pending_review, not hardware-validated). The gate is nevertheless held closed by what is genuinely still open: (B2) 13 vendor 0x39 long writes are emitted as 0x15 short writes by the pinned API, which is an unverified packet-format difference; (B3) the dts/sdm710-xiaomi-sirius.dts changes, the panel driver, the binding and the workflow have never been compiled, their dt_binding_check/dtbs_check results do not exist yet, and the Linux CI workflow has never been run; (B5) the driver, the binding and this evidence have not been through an independent re-review, and the hardware round itself still needs an explicit go-ahead. Evidence completeness is not the same as a build, and a build is not the same as a panel that has been seen working.",
+  "blockers": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "item": "Mainline VCI/rail mapping contradicted the vendor device tree",
+      "required_action": "Correct dts/sdm710-xiaomi-sirius.dts so the 3.0 V panel rail is enabled through tlmm GPIO5 (mirroring /soc/disp_vci_vreg, which the downstream sirius-sdm710.dtsi also declares as gpio = <&tlmm 5 0> with enable-active-high and regulator-boot-on) instead of tlmm GPIO76, and drop or re-justify the vdd3p3-supply = <&vreg_l8b_3p3> 3.3 V rail, since the vendor panel-supply-entries list only vddio 1.8 V and vci 3.0 V.",
+      "status": "resolved_pending_review",
+      "still_open": false,
+      "resolution": "Implemented in this worktree: disp_vci_vreg is a fixed 3.0 V regulator on gpio = <&tlmm 5 GPIO_ACTIVE_HIGH> with startup-delay-us = <4000>, enable-active-high and regulator-boot-on; vddio-supply points at &vreg_l11a_1p8 (the PM660 rail, not PM660L); vdd3p3-supply and the old disp_3p0_en GPIO76 regulator are gone. Recorded in current_worktree with the file sha256. Source-level resolution only: not compiled, not reviewed, not measured on hardware, so this entry stays pending-review rather than validated."
+    },
+    {
+      "id": "B2",
+      "severity": "high",
+      "item": "13 vendor 0x39 long writes are emitted as 0x15 short writes",
+      "required_action": "Either preserve the vendor packet type with a reviewed minimal typed DCS write helper in the DRM core (explicit design, API, guards and EXPORT, keeping the existing transfer path and padding rules, and passing its own safety review), or show with a vendor-comparable trace that the panel accepts the 0x15 form. Until then the difference must not be reported as an equivalence. See packet_type_deviation; the strict form of scripts/gen_ea8074_cmd_table.py --check-c fails on exactly this difference.",
+      "still_open": true
+    },
+    {
+      "id": "B3",
+      "severity": "high",
+      "item": "Nothing has been compiled, and the schema/build gates have never produced an artefact",
+      "required_action": "Run the real toolchain: at minimum dt_binding_check and dtbs_check for the new binding plus a kernel build of the patched tree, then record the tool versions and the results. No compiler, no WSL and no cross toolchain exist on the machine this evidence was prepared on, so no build result may be claimed yet, and the workflow in .github/workflows/build.yml has never been executed either.",
+      "still_open": true
+    },
+    {
+      "id": "B4",
+      "severity": "low",
+      "item": "Live GPIO state not readable in recovery",
+      "required_action": "Either accept FDT-only evidence, or mount debugfs in a later approved step to read /sys/kernel/debug/gpio."
+    },
+    {
+      "id": "B5",
+      "severity": "high",
+      "item": "No independent re-review and no go-ahead for the hardware round",
+      "required_action": "Have the driver patch, the binding, the DTS change, the command-table generator and this evidence re-reviewed by a second, independent thread (the current in-line fixes were made by the same thread that wrote the earlier version), and obtain an explicit user decision before any panel or device is driven. No phone operation of any kind was performed while preparing this evidence.",
+      "still_open": true
+    }
+  ],
+  "downstream_source_evidence": {
+    "repo": "SDM710-Development/android_kernel_xiaomi_sdm710",
+    "ref": "10.0-caf",
+    "commit_full_sha": "06a01bad75939c58be53418f5d71d9d2e25634cf",
+    "note": "All snippets are short excerpts quoted only for the verified facts; full source files were not stored. Line numbers are 1-based within each file at this commit.",
+    "files": {
+      "arch/arm64/boot/dts/qcom/dsi-panel-ss-fhd-ea8074-cmd.dtsi": {
+        "git_blob_sha1": "a4e03c95599da24dbb557797bf79ff60099d0490",
+        "content_sha256": "1417f75d4be910df36464f7c1f32abfa2c20f6619998a1280d6dd5028a3d1386",
+        "transmission_state_properties": {
+          "note": "Every qcom,mdss-dsi-*-command-state property of this panel, quoted with its line. The brightness/brightness-dimming commands are the only ones marked HS; the on/off arrays and all three doze arrays are LP. There is no -command-state property for the backlight path at all (bl_ctrl_dcs goes through qcom,mdss-dsi-bl-pmic-control-type, L46).",
+          "L137": "qcom,mdss-dsi-on-command-state = \"dsi_lp_mode\";",
+          "L138": "qcom,mdss-dsi-off-command-state = \"dsi_lp_mode\";",
+          "L140": "qcom,mdss-dsi-dispparam-dimmingon-command-state = \"dsi_hs_mode\";",
+          "L142": "qcom,mdss-dsi-dispparam-dimmingoff-command-state = \"dsi_lp_mode\";",
+          "L167": "qcom,mdss-dsi-doze-hbm-command-state = \"dsi_lp_mode\";",
+          "L168": "qcom,mdss-dsi-doze-lbm-command-state = \"dsi_lp_mode\";",
+          "L169": "qcom,mdss-dsi-nolp-command-state = \"dsi_lp_mode\";",
+          "derived_on_off": "the on array (L112-133) and the off array (L134-136) are both sent in LP mode; this is exactly what the driver's MIPI_DSI_MODE_LPM default reproduces",
+          "derived_brightness": "the brightness/dimming family is HS (L139-141: dimming-on 53 28 in dsi_hs_mode), while the doze families at L167-169 are LP; the DCS brightness write has no -command-state property to inherit, so its state is decided by the code path (see dsi_panel.c below)"
+        },
+        "on_command_record_types": {
+          "note": "The on array as published in this dtsi declares 13 records with a 2-byte payload as data type 0x39 (long write); the byte arrays in the live FDT and in init_commands.on.bytes_hex carry the same type. Nothing in the vendor source declares them as 0x15, so the emitted packet type is a real difference and not a fixture artefact. The 0x39 2-byte records are exactly L117-L131: B0 01, BB 03, B0 4F, CB 00, B0 6B, CB 00, F7 03, B0 02, B0 05, B1 10, 35 00, 53 20, 55 00 - 13 records.",
+          "L112-133": "qcom,mdss-dsi-on-command = [ 05 01 00 00 0A 00 02 11 00 / 39 00 00 00 00 00 05 2B 00 00 08 C3 / 39 00 00 00 00 00 03 F0 5A 5A / ... / 39 00 00 00 00 00 02 B0 01 / ... / 39 01 00 00 00 00 03 F0 A5 A5 / 39 00 00 00 00 00 02 35 00 / 39 00 00 00 00 00 03 51 00 00 / 39 00 00 00 00 00 02 53 20 / 39 01 00 00 6E 00 02 55 00 / 05 01 00 00 00 00 02 29 00 ];",
+          "L134-136": "qcom,mdss-dsi-off-command = [ 05 01 00 00 25 00 02 28 00 / 05 01 00 00 79 00 02 10 00 ];  /* 0x25 = 37 ms, 0x79 = 121 ms, both type 0x05 with a 0x00 pad byte */",
+          "counts": "21 records: 2x type 0x05 with a 1-byte command (0x11, 0x29) and 19x type 0x39, of which 13 have a 2-byte payload"
+        },
+        "snippets": [
+          "L25: qcom,mdss-dsi-panel-type = \"dsi_cmd_mode\";",
+          "L36: qcom,mdss-dsi-lp11-init;",
+          "L43: qcom,mdss-brightness-max-level = <1023>;",
+          "L46: qcom,mdss-dsi-bl-pmic-control-type = \"bl_ctrl_dcs\";",
+          "L47: qcom,mdss-dsi-bl-inverted-dbv;",
+          "L48: qcom,mdss-dsi-reset-sequence = <0 2>, <1 11>;",
+          "L54: qcom,mdss-dsi-te-dcs-command = <1>;",
+          "L68: qcom,esd-err-irq-gpio = <&tlmm 122 0x2002>;",
+          "L69: qcom,disp-doze-lbm-backlight = <10>;",
+          "L70: qcom,disp-doze-hbm-backlight = <133>;",
+          "L98-99: qcom,mdss-dsi-panel-width = <1080>; qcom,mdss-dsi-panel-height = <2244>;",
+          "L111: qcom,mdss-dsi-panel-framerate = <60>;",
+          "L137: qcom,mdss-dsi-on-command-state = \"dsi_lp_mode\";",
+          "L138: qcom,mdss-dsi-off-command-state = \"dsi_lp_mode\";",
+          "L140: qcom,mdss-dsi-dispparam-dimmingon-command-state = \"dsi_hs_mode\";",
+          "L142: qcom,mdss-dsi-dispparam-dimmingoff-command-state = \"dsi_lp_mode\";"
+        ]
+      },
+      "arch/arm64/boot/dts/qcom/sirius-sdm710.dtsi": {
+        "git_blob_sha1": "4e42f7f23607b4af0d59e1f9cafe6373fa156892",
+        "content_sha256": "5ef622cc883c6f7120f88d68fb7d7b9f1da234c393b4790e37b073368cbf9bed",
+        "snippets": [
+          "L51-58: disp_vci_vreg { compatible = \"regulator-fixed\"; regulator-name = \"disp_vci_vreg\"; start-delay-us = <4000>; enable-active-high; regulator-boot-on; gpio = <&tlmm 5 0>; };",
+          "L180-188: &dsi_ss_fhd_ea8074_cmd { qcom,dsi-display-active; qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_supply>; qcom,mdss-dsi-bl-pmic-control-type = \"bl_ctrl_dcs\"; qcom,mdss-dsi-bl-min-level = <1>; qcom,mdss-dsi-bl-max-level = <1023>; qcom,platform-reset-gpio = <&tlmm 75 0>; qcom,platform-te-gpio = <&tlmm 10 0>; };",
+          "L190-201: &sde_dsi_active mux/config pins = \"gpio75\", \"gpio76\"; function = \"gpio\"; drive-strength = <8>; bias-disable = <0>;",
+          "L203-214: &sde_dsi_suspend mux/config pins = \"gpio75\", \"gpio76\"; function = \"gpio\"; drive-strength = <2>; bias-pull-down;"
+        ],
+        "cross_check": "Matches the live FDT exactly: reset tlmm 75 flag 0, te tlmm 10 flag 0, and gpio75+gpio76 both present in the panel pinctrl state. There is still no qcom,platform-en-gpio here."
+      },
+      "drivers/gpu/drm/msm/dsi-staging/dsi_panel.c": {
+        "git_blob_sha1": "a8d26e75fe3448a4cfc18d36d22b4b82d73130c6",
+        "content_sha256": "facad06278cbd19c20f5faf2e3acb9dbd4982162902419319b590d81c52a7c9f",
+        "transmission_state_mechanism": {
+          "note": "The command state of a vendor command set is a per-set property, and the only thing that changes the wire flags is this one branch in dsi_panel_tx_cmd_set(). The DCS brightness helper takes the other path.",
+          "L2232-L2235 dsi_panel_parse_cmd_sets_sub()": "if (!state || !strcmp(state, \"dsi_lp_mode\")) { cmd->state = DSI_CMD_SET_STATE_LP; } else if (!strcmp(state, \"dsi_hs_mode\")) { cmd->state = DSI_CMD_SET_STATE_HS; } - i.e. the on/off arrays, which carry dsi_lp_mode, become LP and an absent property defaults to LP as well",
+          "L733-L781 dsi_panel_tx_cmd_set()": "state = mode->priv_info->cmd_sets[type].state; for (i = 0; i < count; i++) { if (state == DSI_CMD_SET_STATE_LP) cmds->msg.flags |= MIPI_DSI_MSG_USE_LPM; ... len = ops->transfer(panel->host, &cmds->msg); } (L763-764 and L771) - so the vendor sends the on/off arrays as LP packets, exactly like the mainline MIPI_DSI_MODE_LPM default",
+          "L867-L890 dsi_panel_update_backlight()": "the brightness path never goes through dsi_panel_tx_cmd_set(): it calls mipi_dsi_dcs_set_display_brightness(dsi, bl_lvl) directly (after the bl_inverted_dbv swap at L881), so it inherits no cmd_set state at all",
+          "L1129-L1183 dsi_panel_set_backlight()": "case DSI_BACKLIGHT_DCS: rc = dsi_panel_update_backlight(panel, bl_lvl);",
+          "MIPI_DSI_MODE_LPM is never assigned": "A grep over the four pinned files returns exactly one occurrence of MIPI_DSI_MODE_LPM, the read in drm_mipi_dsi.c L361; neither dsi_panel.c nor dsi_display.c assigns it anywhere. The vendor's own helper writes therefore do not get MIPI_DSI_MSG_USE_LPM from the mode_flags path, and the vendor DSI host sends them as HS bursts.",
+          "conclusion": "Vendor semantics of the three packets this driver sends: the on array and the off array (display off, sleep in) are LP; the 0x51 brightness write is HS because it is issued on a code path that carries no LP request. Mainline reaches the same split with MIPI_DSI_MODE_LPM set by default and cleared around the brightness transfer only, which is what the driver does."
+        },
+        "snippets": [
+          "L763-L764 dsi_panel_tx_cmd_set(): if (state == DSI_CMD_SET_STATE_LP) cmds->msg.flags |= MIPI_DSI_MSG_USE_LPM;",
+          "L2232-L2235 dsi_panel_parse_cmd_sets_sub(): if (!state || !strcmp(state, \"dsi_lp_mode\")) cmd->state = DSI_CMD_SET_STATE_LP; else if (!strcmp(state, \"dsi_hs_mode\")) cmd->state = DSI_CMD_SET_STATE_HS;",
+          "L2374-L2375 dsi_panel_parse_misc_features(): panel->lp11_init = of_property_read_bool(of_node, \"qcom,mdss-dsi-lp11-init\");",
+          "L4150-L4152 dsi_panel_pre_prepare(): /* If LP11_INIT is set, panel will be powered up during prepare() */ if (panel->lp11_init) goto error;",
+          "L4326-L4333 dsi_panel_prepare(): if (panel->lp11_init) { rc = dsi_panel_power_on(panel); ... }",
+          "L4511-L4525 dsi_panel_enable(): rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_ON);",
+          "L867-884 dsi_panel_update_backlight(): if (panel->bl_config.bl_inverted_dbv) bl_lvl = (((bl_lvl & 0xff) << 8) | (bl_lvl >> 8)); rc = mipi_dsi_dcs_set_display_brightness(dsi, bl_lvl);",
+          "L1129-1183 dsi_panel_set_backlight(): case DSI_BACKLIGHT_DCS: rc = dsi_panel_update_backlight(panel, bl_lvl);",
+          "L2505-2507: reset_gpio = of_get_named_gpio(of_node, \"qcom,platform-reset-gpio\", 0);",
+          "L2514-2527: disp_en_gpio = of_get_named_gpio(of_node, \"qcom,5v-boost-gpio\", 0); if invalid, falls back to of_get_named_gpio(of_node, \"qcom,platform-en-gpio\", 0);",
+          "L2529-2530: lcd_mode_sel_gpio = of_get_named_gpio(of_node, \"qcom,panel-mode-gpio\", 0);",
+          "L2749-2750: bl_inverted_dbv = of_property_read_bool(of_node, \"qcom,mdss-dsi-bl-inverted-dbv\");",
+          "L489-506 dsi_panel_reset(): gpio_direction_output(reset_gpio, sequence[0].level) then for each i gpio_set_value(reset_gpio, sequence[i].level) followed by usleep_range(sleep_ms*1000, ...)."
+        ]
+      },
+      "drivers/gpu/drm/drm_mipi_dsi.c": {
+        "git_blob_sha1": "2bac253834e83b69d5cea59ef99ceaa7ea314597",
+        "content_sha256": "374a51a697b1b6cc65d01c5b5861e03ea7b8497fadd3428ee602bff77c937853",
+        "lp_flag_path": "L361-362 mipi_dsi_device_transfer(): if (dsi->mode_flags & MIPI_DSI_MODE_LPM) msg->flags |= MIPI_DSI_MSG_USE_LPM; - the only place in the pinned files that turns a mode flag into a per-message LP request, and it is a read: nothing in this tree assigns MIPI_DSI_MODE_LPM to dsi->mode_flags.",
+        "snippets": [
+          "L1055-1067 int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi, u16 brightness) { u8 payload[2] = { brightness & 0xff, brightness >> 8 }; err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS, payload, sizeof(payload)); ... }",
+          "L361-362 mipi_dsi_device_transfer(): if (dsi->mode_flags & MIPI_DSI_MODE_LPM) msg->flags |= MIPI_DSI_MSG_USE_LPM;"
+        ]
+      },
+      "drivers/gpu/drm/msm/dsi-staging/dsi_display.c": {
+        "git_blob_sha1": "e5e5e03dd8dfed211894da7b2112041126f3d944",
+        "content_sha256": "f1a73d799f4770d61485d36ac8ba52525eb766172ee536c691318adf87efa3be",
+        "note": "Fetched for the F1 transmission-state question only: the single MIPI_DSI_MSG_USE_LPM use in this file is the ESD read-check path, not a command set, and the file never assigns MIPI_DSI_MODE_LPM either.",
+        "snippets": [
+          "L600: cmds[i].msg.flags |= MIPI_DSI_MSG_USE_LPM;  /* dsi_display_esd_check_* read path, unrelated to the panel command sets or the brightness write */"
+        ]
+      },
+      "drivers/gpu/drm/msm/dsi-staging/dsi_pwr.c": {
+        "git_blob_sha1": "20e4006325ab20f1f0a5b9b5cf53f7eb8c6615f4",
+        "content_sha256": "7155b504d6417b33b5723a30d905691f2507e9de6588128786af5b15424704f5",
+        "snippets": [
+          "L136-170 enable path: for (i = 0; i < regs->count; i++) { msleep(pre_on_sleep); regulator_set_load(enable_load); regulator_set_voltage(min,max); regulator_enable(); msleep(post_on_sleep); }",
+          "L171-182 disable path: for (i = (regs->count - 1); i >= 0; i--) { msleep(pre_off_sleep); regulator_set_load(disable_load); regulator_disable(); msleep(post_off_sleep); }",
+          "L35: of_property_read_string(node, \"qcom,supply-name\", &st);",
+          "L96-102: of_property_read_u32(node, \"qcom,supply-post-on-sleep\", &tmp); -> regs->vregs[i].post_on_sleep = tmp;"
+        ]
+      },
+      "drivers/regulator/fixed.c": {
+        "git_blob_sha1": "988a7472c2ab568c3d1c03d1092c0713073a6d28",
+        "content_sha256": "a1a388094b19d98ed28ec3b2c0d75d56ca5ef70dba6ec23e174bc130b98f9a59",
+        "snippets": [
+          "L85: of_property_read_u32(np, \"startup-delay-us\", &config->startup_delay);",
+          "L87: config->enable_high = of_property_read_bool(np, \"enable-active-high\");"
+        ],
+        "conclusion": "Reads startup-delay-us, not start-delay-us. A repository code search for \"start-delay-us\" returns total_count 3 and every hit is a DTS file, so no C code consumes it anywhere in this tree."
+      }
+    },
+    "explicitly_not_used_as_byte_order_evidence": [
+      "drivers/gpu/drm/panel/panel-samsung-ams639rq08.c (different panel; mainline tree)",
+      "mipi_dsi_dcs_set_display_brightness_large() from the mainline DRM core"
+    ],
+    "byte_order_conclusion": "Derived only from EA8074-specific downstream source: dsi_panel.c L881-884 applies the bl_inverted_dbv byte swap, then drm_mipi_dsi.c L1058 packs little-endian; the EA8074 dtsi L47 enables that swap, so the two cancel and the wire payload after DCS 0x51 is [MSB, LSB]."
+  },
+  "transmission_state_evidence": {
+    "question": "Which of the three packets this driver sends must be LP and which must be HS, and on what evidence?",
+    "answer": "On/off arrays in LP, brightness write in HS.",
+    "downstream_chain": [
+      "dtsi L137/L138: qcom,mdss-dsi-on-command-state and -off-command-state are both \"dsi_lp_mode\"; L140 dimming-on is \"dsi_hs_mode\"; L167-169 the doze states are LP.",
+      "dsi_panel.c L2232-2235: that property becomes DSI_CMD_SET_STATE_LP / DSI_CMD_SET_STATE_HS, default LP.",
+      "dsi_panel.c L763-764 + L771: dsi_panel_tx_cmd_set() adds MIPI_DSI_MSG_USE_LPM for LP sets and only then calls ops->transfer(), so the vendor's on/off arrays are LP packets.",
+      "dsi_panel.c L867-884 (called from L1129-1183): the brightness write does not go through a command set at all, so it carries no LP request.",
+      "drm_mipi_dsi.c L361-362 (downstream): the only place that turns MIPI_DSI_MODE_LPM into MIPI_DSI_MSG_USE_LPM is a read, and neither dsi_panel.c nor dsi_display.c ever assigns MIPI_DSI_MODE_LPM, so the vendor's helper writes are HS."
+    ],
+    "downstream_terms": {
+      "dsi_lp_mode": "per-command-set property; LP packet on the wire",
+      "dsi_hs_mode": "per-command-set property; HS packet on the wire",
+      "lp11_init": "qcom,mdss-dsi-lp11-init (dtsi L36) parsed at dsi_panel.c L2374-2375; it moves the power-on from dsi_panel_pre_prepare() (which skips it, L4150-4152) to dsi_panel_prepare() (L4326-4333). It is not a per-packet state."
+    },
+    "mainline_equivalent": {
+      "pinned_commit": "75d5a9875202673b11a8eac05e6f489ba0c87a05",
+      "note": "Line numbers are 1-based in the pinned upstream tree; these files were read from it and are not part of the fixture's byte evidence.",
+      "include/drm/drm_mipi_dsi.h L22": "#define MIPI_DSI_MSG_USE_LPM BIT(1) - per-message: send this one message in low power mode",
+      "include/drm/drm_mipi_dsi.h L138": "#define MIPI_DSI_MODE_LPM BIT(11) - per-device: transmit data in low power (by default)",
+      "drivers/gpu/drm/drm_mipi_dsi.c L448-L457": "mipi_dsi_device_transfer() is static and does: if (dsi->mode_flags & MIPI_DSI_MODE_LPM) msg->flags |= MIPI_DSI_MSG_USE_LPM; - so MIPI_DSI_MODE_LPM is the default state and clearing it makes a helper write HS. A panel driver cannot call this function (static) and must not reach host->ops->transfer itself.",
+      "drivers/gpu/drm/drm_mipi_dsi.c L920-944": "mipi_dsi_dcs_write_buffer() chooses the data type from the transmit length: 1 -> MIPI_DSI_DCS_SHORT_WRITE (0x05), 2 -> MIPI_DSI_DCS_SHORT_WRITE_PARAM (0x15), >= 3 -> MIPI_DSI_DCS_LONG_WRITE (0x39).",
+      "drivers/gpu/drm/drm_mipi_dsi.c L1043-L1061": "mipi_dsi_dcs_write() concatenates { cmd, payload } and calls mipi_dsi_dcs_write_buffer(), so the 0x51 brightness write is length 3 and therefore a 0x39 long write.",
+      "drivers/gpu/drm/drm_mipi_dsi.c L1449-L1462": "mipi_dsi_dcs_set_display_brightness() packs { brightness & 0xff, brightness >> 8 } and calls mipi_dsi_dcs_write(); the driver uses the _multi variant of the same helper.",
+      "drivers/gpu/drm/msm/dsi/dsi_host.c L2178-L2179, L2200-L2201": "if (!(msg->flags & MIPI_DSI_MSG_USE_LPM)) dsi_set_tx_power_mode(0|1, msm_host); - the MSM DSI host selects HS unless the message carries the LP flag, which is the concrete consequence of clearing MIPI_DSI_MODE_LPM.",
+      "drivers/gpu/drm/panel/panel-samsung-ams639rq08.c L201-L209, L224": "precedent for the API usage name only (\"dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;\" before a helper write). It is a different panel and is explicitly NOT evidence for the EA8074 brightness state or byte order."
+    },
+    "driver_implementation": {
+      "on_off_arrays": "sent in LP: dsi->mode_flags keeps MIPI_DSI_MODE_LPM, exactly the mainline default that mirrors the vendor's dsi_lp_mode sets",
+      "brightness_write": "sent in HS: ea8074_bl_update_status() clears MIPI_DSI_MODE_LPM, performs the transfer, and restores the previous mode_flags",
+      "serialisation": "ea8074_bl_update_status() takes ctx->xfer_lock around the mode_flags window, and the LP sequences (on/off, and the shutdown path) take the same lock, so a mode_flags window can never overlap another packet sequence. The lock ordering is a plain mutex; no path takes it from atomic context.",
+      "prepare_prev_first": "kept for the lp11_init ordering requirement above, with the comment corrected: it is an API requirement of the pinned mainline core (enable the host before preparing the panel), not something claimed from a fixture property that does not exist."
+    },
+    "residual_uncertainty": [
+      "The HS/LP conclusion for the brightness write is derived from the pinned source, not from a hardware run: no packet was captured and no panel was driven. A protocol analyser trace remains the only way to confirm the state on the wire.",
+      "If a future mainline core path were to set MIPI_DSI_MODE_LPM outside this driver (none does at the pinned commit), the brightness window would still be correct because it saves and restores mode_flags rather than assuming the previous value.",
+      "The vendor's on/off arrays being LP is the one part that is directly pinned by a device-tree property (dsi_lp_mode) and by the code that consumes it, so it is the stronger of the two conclusions."
+    ]
+  },
+  "packet_type_deviation": {
+    "what": "The pinned vendor command arrays declare 13 on-array records as data type 0x39 (long write) with a 2-byte payload. A mainline DCS write whose total length is 2 is defined to be a 0x15 short write with parameter (drm_mipi_dsi.c L920-944), and the pinned tree offers no non-static API to request 0x39 explicitly. The data type of these 13 packets therefore differs on the wire.",
+    "why_it_cannot_be_papered_over": "The bytes and the waits are identical, but the packet format is not, and the receiving panel is the only thing that can decide whether that matters. Declaring the arrays equivalent because their payloads match would be exactly the kind of unverified claim this fixture exists to prevent.",
+    "count": 13,
+    "detected_by": "scripts/gen_ea8074_cmd_table.py --check-c <driver> (strict; fails on any data-type change, including this one) and --report-diff (prints the record-by-record table and passes only while the deviation is exactly this documented set)",
+    "on": {
+      "expected_type_diff_records": [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 16, 18, 19],
+      "vendor_types": "0x39 with a 2-byte payload (dtsi L117-L131: B0 01, BB 03, B0 4F, CB 00, B0 6B, CB 00, F7 03, B0 02, B0 05, B1 10, 35 00, 53 20, 55 00)",
+      "emitted_types": "0x15 for those 13 records; all other records keep the vendor type (0x05 stays 0x05, 0x39 with a payload of 3 or more bytes stays 0x39)",
+      "status": "unverified_hardware_blocker"
+    },
+    "off_display": {
+      "expected_type_diff_records": [],
+      "status": "match"
+    },
+    "sleep_in": {
+      "expected_type_diff_records": [],
+      "status": "match"
+    },
+    "preserved_exactly": "The 0x05 command records lose only their 0x00 pad byte (1 byte on the wire, as the vendor intends), the 0x51 record keeps its 3-byte payload and therefore its 0x39 type, the record order is unchanged, and the totals stay 21 + 2 records with the same per-record waits (120 ms for on, 37 ms + 121 ms for off) and the same array sha256.",
+    "options_considered": [
+      "Resend the 13 records as a 3-byte 0x39 packet by appending a padding byte: rejected, because it would change the payload and invent a byte the vendor never sends.",
+      "Call host->ops->transfer() directly from the panel driver to pass an explicit 0x39 type: rejected, because it bypasses the DRM core's transfer wrapper with its MIPI_DSI_MODE_LPM handling, and the panel would have to reproduce the core's checks, runtime-PM and length/padding handling itself.",
+      "A minimal typed DCS core helper (for example a function that takes the intended DCS data type plus the payload, keeps the existing write buffer path and padding rules, and is EXPORT_SYMBOL'd with the same locking and PM properties as mipi_dsi_dcs_write_buffer()): this is the only option that could preserve the vendor packet types, but the API, its guards and its EXPORT must be designed and reviewed first. It is not implemented here and it must not be declared hardware-ready by this thread."
+    ],
+    "consequence": "No packet-type equivalence is claimed. The deviation is carried as blocker B2 and keeps hardware_test_ready false until it is either fixed with a reviewed typed write or shown to be harmless by a vendor-comparable trace."
+  },
+  "operations_performed": {
+    "read_only_only": true,
+    "adb_commands": [
+      "adb devices -l",
+      "adb shell ls -l /sys/firmware/fdt",
+      "adb exec-out cat /sys/firmware/fdt",
+      "adb shell read of /sys/class/regulator/*/{name,state,microvolts,num_users}",
+      "adb shell ls /sys/class/gpio and gpiochip label/base/ngpio",
+      "adb shell cat /proc/mounts, ls /sys/kernel/debug, ls /sys/kernel/leds, ls /d"
+    ],
+    "not_performed": [
+      "no push, mount, reboot, setprop, insmod",
+      "no regulator enable, no GPIO toggle, no register access",
+      "no partition write, no large partition read, no userdata access",
+      "no GPIO line export",
+      "no FDT written to disk",
+      "no Git state change, no credentials created, no auth bypass"
+    ]
+  }
+}
