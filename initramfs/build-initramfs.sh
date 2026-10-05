@@ -89,7 +89,10 @@ BB_CACHE="${HOME:-/tmp}/.cache/sirius-busybox"
 ALPINE_URL="https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/aarch64/alpine-minirootfs-3.20.9-aarch64.tar.gz"
 
 rm -rf "$IRD"
-mkdir -p "$IRD"/{bin,etc,proc,sys,dev,lib,lib64}
+# sbin matters: busybox --install -s places applets such as mke2fs and
+# switch_root in /sbin, and without that directory they get no command entry
+# at all ("mke2fs: not found").
+mkdir -p "$IRD"/{bin,sbin,etc,proc,sys,dev,lib,lib64}
 # Reuse a previously fetched/compiled copy when CI restored it from cache, so
 # repeated pack runs do not re-download or re-compile busybox.
 if verify_aarch64 "$BB_CACHE/busybox"; then
@@ -227,9 +230,10 @@ else
   mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
   if [ "$ROOT_MOUNTED" = no ]; then
     say "rootfs: $ROOTDEV not ext4 - formatting (first boot)"
-    # busybox ships this as mke2fs; there is no mkfs.ext2 symlink.
-    mke2fs -q -F -L sirius-root -t ext4 "$ROOTDEV" 2>/dev/null \
-      || mke2fs -q -F -L sirius-root "$ROOTDEV" 2>/dev/null \
+    # Call through busybox explicitly: mke2fs/switch_root are /sbin applets and
+    # must not rely on the --install -s symlinks being present.
+    /bin/busybox mke2fs -q -F -L sirius-root -t ext4 "$ROOTDEV" 2>&1 | tail -n 2 \
+      || /bin/busybox mke2fs -q -F -L sirius-root "$ROOTDEV" 2>&1 | tail -n 2 \
       || say "rootfs: mke2fs failed"
     mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
   fi
@@ -250,7 +254,7 @@ else
     fi
     if [ -x /newroot/sbin/init ]; then
       say "rootfs: switching to $ROOTDEV"
-      exec switch_root /newroot /sbin/init
+      exec /bin/busybox switch_root /newroot /sbin/init
     fi
     say "rootfs: no usable init on $ROOTDEV"
   fi
