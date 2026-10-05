@@ -8,13 +8,14 @@ on:
         required: false
         default: "on-stable"
       mode:
-        description: "full = rebuild the kernel; pack = reuse the cached kernel image"
+        description: "full = kernel+dtb; pack = reuse cached kernel and dtb; dtb = reuse cached kernel, rebuild dtb only"
         required: false
         default: "full"
         type: choice
         options:
           - full
           - pack
+          - dtb
 
 jobs:
   build:
@@ -47,12 +48,15 @@ jobs:
             ccache-${{ github.event.inputs.kernel_ref }}-
             ccache-
 
+      # The kernel image does not depend on the device tree, so the device tree
+      # is deliberately NOT part of this key: a DTS-only change then still hits
+      # the cached Image.gz and only the dtb has to be rebuilt (mode=dtb).
       - name: Restore built kernel image
         id: kcache
         uses: actions/cache/restore@v4
         with:
           path: carry
-          key: kernel-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config', 'dts/sdm710-xiaomi-sirius.dts') }}
+          key: kernel-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config') }}
 
       - name: Restore arm64 busybox
         uses: actions/cache@v4
@@ -62,7 +66,7 @@ jobs:
 
       # ---- kernel ---------------------------------------------------------
       - name: Build kernel image + dtbs
-        if: github.event.inputs.mode != 'pack' && steps.kcache.outputs.cache-hit != 'true'
+        if: github.event.inputs.mode == 'full' && steps.kcache.outputs.cache-hit != 'true'
         env:
           ARCH: arm64
           CROSS_COMPILE: "ccache aarch64-linux-gnu-"
@@ -88,11 +92,33 @@ jobs:
           cp arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb ../carry/
 
       - name: Save built kernel image
-        if: github.event.inputs.mode != 'pack' && steps.kcache.outputs.cache-hit != 'true'
+        if: github.event.inputs.mode == 'full' && steps.kcache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: carry
-          key: kernel-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config', 'dts/sdm710-xiaomi-sirius.dts') }}
+          key: kernel-${{ github.event.inputs.kernel_ref }}-${{ hashFiles('config/sirius.config') }}
+
+      - name: Rebuild device tree only
+        if: github.event.inputs.mode == 'dtb'
+        env:
+          ARCH: arm64
+          CROSS_COMPILE: "ccache aarch64-linux-gnu-"
+          CCACHE_DIR: "/home/runner/.ccache"
+          CCACHE_MAXSIZE: "2G"
+        run: |
+          git clone --depth=1 -b "${{ github.event.inputs.kernel_ref }}" https://gitlab.com/sdm670-mainline/linux.git kernel
+          cp dts/sdm710-xiaomi-sirius.dts kernel/arch/arm64/boot/dts/qcom/
+          MF=kernel/arch/arm64/boot/dts/qcom/Makefile
+          grep -q 'sdm710-xiaomi-sirius.dtb' "$MF" || \
+            printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$MF"
+          cd kernel
+          make defconfig
+          scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
+          scripts/kconfig/merge_config.sh -m .config ../config/sirius.config
+          make olddefconfig
+          make -j"$(nproc)" dtbs
+          cp arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb ../carry/
+          ls -l ../carry/
 
       - name: Stage kernel image into the tree layout
         run: |
