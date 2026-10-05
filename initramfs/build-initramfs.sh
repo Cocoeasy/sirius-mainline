@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tiny initramfs that brings up a shell over USB (RNDIS/ECM).
+# Read-only handover to the existing Nura/pmOS image, with local ACM/NCM diagnostics.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -83,16 +83,13 @@ try_cross_compile() {
 
 BB_CACHE="${HOME:-/tmp}/.cache/sirius-busybox"
 
-# --- Alpine rootfs payload ------------------------------------------------
-# Carried inside the initramfs and unpacked onto the eMMC on first boot, so
-# no host-side network transfer is needed to get a userland onto the device.
-ALPINE_URL="https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/aarch64/alpine-minirootfs-3.20.9-aarch64.tar.gz"
+# Use the existing Nura/pmOS image on userdata; never provision or replace it.
 
 rm -rf "$IRD"
 # sbin matters: busybox --install -s places applets such as mke2fs and
 # switch_root in /sbin, and without that directory they get no command entry
 # at all ("mke2fs: not found").
-mkdir -p "$IRD"/{bin,sbin,etc,proc,sys,dev,lib,lib64}
+mkdir -p "$IRD"/{bin,sbin,usr/bin,usr/sbin,etc,proc,sys,dev,lib,lib64}
 # Reuse a previously fetched/compiled copy when CI restored it from cache, so
 # repeated pack runs do not re-download or re-compile busybox.
 if verify_aarch64 "$BB_CACHE/busybox"; then
@@ -107,18 +104,6 @@ fi
 echo "initramfs busybox e_machine: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | tr -d ' \n') (b700 = AArch64)"
 
 # Alpine minirootfs payload, unpacked to the eMMC by /init on first boot.
-ALPINE_CACHE="${HOME:-/tmp}/.cache/sirius-alpine"
-ALPINE_TGZ="alpine-minirootfs-3.20.9-aarch64.tar.gz"
-mkdir -p "$ALPINE_CACHE"
-if [ -s "$ALPINE_CACHE/$ALPINE_TGZ" ] && gzip -t "$ALPINE_CACHE/$ALPINE_TGZ" 2>/dev/null; then
-  echo "  alpine rootfs from cache"
-else
-  echo "  downloading $ALPINE_URL"
-  curl -fsSL --max-time 300 "$ALPINE_URL" -o "$ALPINE_CACHE/$ALPINE_TGZ"
-  gzip -t "$ALPINE_CACHE/$ALPINE_TGZ"
-fi
-cp "$ALPINE_CACHE/$ALPINE_TGZ" "$IRD/alpine-rootfs.tar.gz"
-echo "  alpine payload: $(stat -c%s "$IRD/alpine-rootfs.tar.gz") bytes"
 
 for a in sh ls cat mount umount echo ip ifconfig udhcpd udhcpc \
          mdev sleep mkdir ln dmesg reboot poweroff \
@@ -128,143 +113,250 @@ done
 
 cat > "$IRD/init" <<'INIT_EOF'
 #!/bin/busybox sh
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+/bin/busybox mkdir -p /bin /sbin /usr/bin /usr/sbin /proc /sys /dev /run /mnt/log /newroot
 /bin/busybox --install -s
-mount -t proc none /proc
-mount -t sysfs none /sys
-mount -t devtmpfs none /dev 2>/dev/null || mdev -s
-
-# Persist this boot log on the (ext4) cache partition. TWRP's own kernel
-# overwrites the ramoops/pstore record, so a file here is the only log that
-# survives to be read afterwards.
-LOGDEV=""
-mkdir -p /mnt/log
-for d in /dev/block/by-name/cache /dev/block/mmcblk0p77; do
-  [ -b "$d" ] || continue
-  if mount -t ext4 "$d" /mnt/log 2>/dev/null; then LOGDEV="$d"; break; fi
-done
+bb() { /bin/busybox "$@"; }
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || mdev -s
+mount -t tmpfs -o mode=0755,size=192m tmpfs /run
 LOG=""
-[ -n "$LOGDEV" ] && LOG=/mnt/log/sirius-boot.log
-say() { echo "$@"; [ -n "$LOG" ] && echo "$@" >> "$LOG"; }
-
-if [ -n "$LOG" ]; then
-  say "=== sirius initramfs boot log (logdev=$LOGDEV) ==="
-else
-  echo "=== sirius initramfs (no writable log partition) ==="
-fi
-say "$(cat /proc/version)"
-
-say "--- USB topology ---"
-say "udc:      $(ls /sys/class/udc 2>&1)"
-say "extcon:   $(ls /sys/class/extcon 2>&1)"
-say "a6f8800.usb driver:  $(basename "$(readlink -f /sys/bus/platform/devices/a6f8800.usb/driver 2>/dev/null)" 2>/dev/null)"
-for p in /sys/bus/platform/devices/*usb*phy* /sys/bus/platform/devices/*hsphy*; do
-  [ -e "$p" ] || continue
-  say "phy $(basename "$p"): $(basename "$(readlink -f "$p/driver" 2>/dev/null)" 2>/dev/null)"
-done
-
-if [ -d /sys/kernel/config ]; then
-  mount -t configfs none /sys/kernel/config 2>/dev/null || true
-  G=/sys/kernel/config/usb_gadget/g1
-  mkdir -p "$G" 2>/dev/null || say "gadget: cannot create $G"
-  echo 0x2717 > "$G/idVendor" 2>/dev/null || true
-  echo 0xff48 > "$G/idProduct" 2>/dev/null || true
-  mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409" 2>/dev/null || true
-  echo "sirius-initramfs-0001" > "$G/strings/0x409/serialnumber" 2>/dev/null || true
-  echo "sirius"                > "$G/strings/0x409/manufacturer" 2>/dev/null || true
-  echo "sirius initramfs"      > "$G/strings/0x409/product"     2>/dev/null || true
-  echo "acm+ncm"               > "$G/configs/c.1/strings/0x409/configuration" 2>/dev/null || true
-
-  # CDC-ACM gives a COM port on Windows using its in-box serial driver; CDC-NCM
-  # gives a network interface with the in-box NCM driver. Both install cleanly
-  # where the RNDIS driver does not (CM_PROB_FAILED_INSTALL).
-  for fn in acm.usb0 ncm.usb0; do
-    if mkdir -p "$G/functions/$fn" 2>/dev/null; then
-      ln -sf "$G/functions/$fn" "$G/configs/c.1/" 2>/dev/null || true
-      say "gadget: function $fn ready"
-    else
-      say "gadget: function $fn unavailable"
+say() {
+  echo "$@"
+  for kmsg in /dev/kmsg /newroot/dev/kmsg; do
+    if [ -c "$kmsg" ]; then echo "SIRIUS-EXISTING: $*" > "$kmsg" 2>/dev/null; break; fi
+  done
+  if [ -n "$LOG" ]; then echo "$@" >> "$LOG"; sync; fi
+  return 0
+}
+serial_shell() {
+  for tty in /dev/ttyGS0 /newroot/dev/ttyGS0; do
+    if [ -c "$tty" ]; then
+      setsid /bin/sh -c 'exec /bin/sh -i <"$1" >"$1" 2>&1' sh "$tty" &
+      break
     fi
   done
-
-  UDC=$(ls /sys/class/udc 2>/dev/null | head -1)
-  if [ -n "$UDC" ]; then
-    echo "$UDC" > "$G/UDC" 2>/dev/null && say "gadget: bound to UDC $UDC" || say "gadget: bind to $UDC failed"
-  else
-    say "gadget: NO UDC present -> USB PHY/dwc3 did not come up"
-  fi
-fi
-
-# Serial shell over the CDC-ACM port (Windows: a COMx port).
-if [ -c /dev/ttyGS0 ]; then
-  say "console: shell on /dev/ttyGS0 (USB CDC-ACM)"
-  setsid /bin/sh -c 'exec /bin/sh </dev/ttyGS0 >/dev/ttyGS0 2>&1' &
-else
-  say "console: /dev/ttyGS0 missing"
-fi
-
-sleep 2
-ifconfig usb0 172.16.42.1 netmask 255.255.0.0 up 2>/dev/null || true
-say "network: usb0 -> 172.16.42.1 (telnetd :23)"
-say "usb0 state: $(ifconfig usb0 2>&1 | tr '\n' ' ')"
-
-dmesg | tail -n 60 >> "${LOG:-/dev/null}" 2>/dev/null
-dmesg | tail -n 15
-[ -n "$LOG" ] && sync && umount /mnt/log 2>/dev/null
-
-# --- hand over to the eMMC rootfs ----------------------------------------
-# The bootloader supplies its own root= (pointing at a PARTUUID that does not
-# exist here), so the initramfs mounts the userdata partition itself and
-# switch_roots into it. On the very first boot it formats the partition and
-# unpacks the Alpine minirootfs carried inside this initramfs, so the device
-# needs no host-side transfer to get a userland.
-ROOTDEV=""
-for d in /dev/mmcblk0p81 /dev/disk/by-name/userdata; do
-  [ -b "$d" ] && { ROOTDEV="$d"; break; }
+}
+fatal() {
+  say "FAILED: $*; remaining in initramfs; no userdata writes"
+  serial_shell
+  while true; do sleep 60; done
+}
+say "init started"
+i=0
+while [ "$i" -lt 15 ]; do
+  for d in /dev/mmcblk0p77 /dev/block/mmcblk0p77; do
+    [ -b "$d" ] || continue
+    if mount -t ext4 "$d" /mnt/log 2>/dev/null; then
+      LOG=/mnt/log/sirius-existing.log
+      [ -s "$LOG" ] && mv "$LOG" "$LOG.prev"
+      : > "$LOG"
+      break
+    fi
+  done
+  [ -n "$LOG" ] && break
+  sleep 1; i=$((i+1))
 done
+say "SIRIUS-EXISTING cache=$LOG"
+say "$(cat /proc/version)"
 
-if [ -z "$ROOTDEV" ]; then
-  say "rootfs: no eMMC userdata partition found"
+# BEGIN ROOTFS_VALIDATION
+# Read the bounded GPT layout used by the existing image. All reads are narrow;
+# supporting another layout requires explicit validation, never guessing offsets.
+read_u32() {
+  _word=$(bb dd if="$1" bs=1 skip="$2" count=4 2>/dev/null | bb od -An -tu4 | bb tr -d ' \n')
+  case "$_word" in ''|*[!0-9]*) return 1;; esac
+  printf '%s\n' "$_word"
+}
+read_lba32() {
+  _hi=$(read_u32 "$1" "$(($2+4))") || return 1
+  [ "$_hi" = 0 ] || return 1
+  read_u32 "$1" "$2"
+}
+read_root_layout() {
+  ROOT_OFFSET=""; ROOT_SIZE=""
+  _dev="$1"; _sectors="$2"
+  case "$_sectors" in ''|*[!0-9]*) return 1;; esac
+  [ "$_sectors" -gt 34 ] && [ "$_sectors" -le 4294967295 ] || return 1
+  _sig=$(bb dd if="$_dev" bs=1 skip=512 count=8 2>/dev/null) || return 1
+  [ "$_sig" = 'EFI PART' ] || return 1
+  _rev=$(read_u32 "$_dev" 520) || return 1
+  _hs=$(read_u32 "$_dev" 524) || return 1
+  [ "$_rev" = 65536 ] && [ "$_hs" = 92 ] || return 1
+  _current=$(read_lba32 "$_dev" 536) || return 1
+  _backup=$(read_lba32 "$_dev" 544) || return 1
+  _firstuse=$(read_lba32 "$_dev" 552) || return 1
+  _lastuse=$(read_lba32 "$_dev" 560) || return 1
+  _table=$(read_lba32 "$_dev" 584) || return 1
+  _entries=$(read_u32 "$_dev" 592) || return 1
+  _esize=$(read_u32 "$_dev" 596) || return 1
+  [ "$_current" = 1 ] && [ "$_table" = 2 ] && [ "$_entries" = 128 ] && [ "$_esize" = 128 ] || return 1
+  [ "$_firstuse" -ge 34 ] && [ "$_lastuse" -ge "$_firstuse" ] || return 1
+  [ "$_backup" -gt "$_lastuse" ] && [ "$_backup" -lt "$_sectors" ] || return 1
+  _entry=$((_table*512+128))
+  _type=$(bb dd if="$_dev" bs=1 skip="$_entry" count=16 2>/dev/null | bb od -An -tx1 | bb tr -d ' \n')
+  [ "$_type" = '45b021b9f01dc341af444c6f280d3fae' ] || return 1
+  _first=$(read_lba32 "$_dev" "$((_entry+32))") || return 1
+  _last=$(read_lba32 "$_dev" "$((_entry+40))") || return 1
+  [ "$_first" -ge "$_firstuse" ] && [ "$_last" -ge "$_first" ] || return 1
+  [ "$_last" -le "$_lastuse" ] && [ "$_last" -lt "$_sectors" ] || return 1
+  ROOT_OFFSET=$((_first*512))
+  ROOT_SIZE=$(((_last-_first+1)*512))
+  return 0
+}
+# END ROOTFS_VALIDATION
+
+mount -t configfs configfs /sys/kernel/config 2>/dev/null || true
+G=/sys/kernel/config/usb_gadget/g1
+mkdir -p "$G" || fatal "configfs unavailable"
+echo 0x2717 > "$G/idVendor"
+echo 0xff48 > "$G/idProduct"
+mkdir -p "$G/strings/0x409" "$G/configs/c.1/strings/0x409"
+echo sirius-existing-0001 > "$G/strings/0x409/serialnumber"
+echo sirius > "$G/strings/0x409/manufacturer"
+echo 'sirius existing rootfs diagnostic' > "$G/strings/0x409/product"
+echo acm+ncm > "$G/configs/c.1/strings/0x409/configuration"
+for fn in acm.usb0 ncm.usb0; do
+  mkdir -p "$G/functions/$fn" || fatal "function $fn missing"
+  ln -s "$G/functions/$fn" "$G/configs/c.1/$fn" || fatal "link $fn"
+done
+n=0
+while [ -z "$(ls /sys/class/udc)" ] && [ "$n" -lt 30 ]; do sleep 1; n=$((n+1)); done
+UDC=$(ls /sys/class/udc | head -1)
+[ -n "$UDC" ] || fatal "UDC missing"
+echo "$UDC" > "$G/UDC" || fatal "UDC bind failed"
+ifconfig usb0 172.16.42.1 netmask 255.255.0.0 up || fatal "usb0 configuration"
+say "USB bound=$UDC"
+
+ROOTDEV=/dev/mmcblk0p81
+i=0
+while [ ! -b "$ROOTDEV" ] && [ "$i" -lt 15 ]; do sleep 1; i=$((i+1)); done
+[ -b "$ROOTDEV" ] || fatal "userdata node absent"
+sectors=$(cat /sys/class/block/mmcblk0p81/size)
+read_root_layout "$ROOTDEV" "$sectors" || fatal "GPT validation failed"
+say "GPT offset=$ROOT_OFFSET bytes=$ROOT_SIZE sectors=$sectors"
+# The BusyBox loop applet has no size-limit option. The read-only backing and
+# checked ext4 geometry below prevent any write or filesystem use past its end.
+LOOP=$(losetup -f) || fatal "no free loop device"
+losetup -r -o "$ROOT_OFFSET" "$LOOP" "$ROOTDEV" || fatal "read-only loop setup"
+magic=$(read_u32 "$LOOP" 1080) || fatal "superblock read"
+[ "$((magic & 65535))" = 61267 ] || fatal "rootfs is not ext4"
+blocks=$(read_u32 "$LOOP" 1028) || fatal "filesystem block count"
+logbs=$(read_u32 "$LOOP" 1048) || fatal "filesystem block size"
+blocks_hi=$(read_u32 "$LOOP" 1360) || fatal "filesystem high block count"
+[ "$blocks_hi" = 0 ] && [ "$logbs" -le 2 ] && [ "$blocks" -gt 0 ] || fatal "unsupported ext4 geometry"
+[ "$((blocks*(1024<<logbs)))" -le "$ROOT_SIZE" ] || fatal "filesystem exceeds partition"
+root_uuid=$(bb dd if="$LOOP" bs=1 skip=1128 count=16 2>/dev/null | bb od -An -tx1 | bb tr -d ' \n')
+root_label=$(bb dd if="$LOOP" bs=1 skip=1144 count=16 2>/dev/null | bb od -An -tx1 | bb tr -d ' \n')
+[ "$root_uuid" = c84b0979b794487ba2655acebece3f21 ] && [ "$root_label" = 706d4f535f726f6f7400000000000000 ] || fatal "rootfs identity mismatch"
+mount -t ext4 -o ro,noload "$LOOP" /newroot || fatal "read-only root mount"
+[ -x /newroot/lib/systemd/systemd ] && [ -x /newroot/sbin/apk ] || fatal "existing userspace incomplete"
+for dir in etc var dev proc sys run; do
+  [ -d "/newroot/$dir" ] && [ ! -L "/newroot/$dir" ] || fatal "unsafe root directory $dir"
+done
+( cd /newroot && sha256sum etc/os-release etc/fstab etc/shadow etc/inittab lib/systemd/systemd ) > /run/sirius-baseline.sha256 || fatal "original configuration hash failed"
+[ -n "$LOG" ] && cat /run/sirius-baseline.sha256 >> "$LOG"
+sync
+chroot /newroot /lib/systemd/systemd --version > /run/systemd-version.log 2>&1 || fatal "systemd cannot execute"
+say "$(head -1 /run/systemd-version.log)"
+
+# Only tmpfs mounts receive configuration changes. The disk root stays read-only.
+mkdir -p /run/sirius-etc
+cp -a /newroot/etc/. /run/sirius-etc/ || fatal "copy existing configuration into RAM"
+mount -t tmpfs -o mode=0755,size=48m tmpfs /newroot/etc || fatal "etc tmpfs"
+cp -a /run/sirius-etc/. /newroot/etc/ || fatal "populate volatile etc"
+rm -rf /run/sirius-etc
+mount -t tmpfs -o mode=0755,size=64m tmpfs /newroot/var || fatal "var tmpfs"
+mkdir -p /newroot/var/log /newroot/var/lib /newroot/var/cache /newroot/var/tmp
+for dir in /newroot/etc/systemd /newroot/etc/systemd/system; do
+  [ ! -L "$dir" ] || fatal "volatile unit directory symlink $dir"
+  mkdir -p "$dir" || fatal "create volatile unit directory"
+done
+# Materialize symlink-prone files in the volatile /etc; never follow them to disk.
+rm -f /newroot/etc/machine-id /newroot/etc/fstab
+id=$(cat /proc/sys/kernel/random/uuid | tr -d '-')
+printf '%s\n' "$id" > /newroot/etc/machine-id
+printf '# Diagnostic boot: no generated disk mounts or root remounts\n' > /newroot/etc/fstab
+# Avoid persistent target symlinks: these unit files are installed in RAM only.
+rm -f /newroot/etc/systemd/system/sirius-diagnostic.target /newroot/etc/systemd/system/sirius-shell.service /newroot/etc/systemd/system/sirius-evidence.service
+cat > /newroot/etc/systemd/system/sirius-diagnostic.target <<'TARGET_EOF'
+[Unit]
+Description=Sirius read-only existing rootfs diagnostic
+DefaultDependencies=no
+Wants=sirius-shell.service sirius-evidence.service systemd-journald.service
+AllowIsolate=yes
+TARGET_EOF
+cat > /newroot/etc/systemd/system/sirius-shell.service <<'SHELL_EOF'
+[Unit]
+Description=Local USB test shell (temporary diagnostic image only)
+DefaultDependencies=no
+[Service]
+Type=simple
+ExecStart=/bin/busybox sh -i
+Restart=always
+RestartSec=5
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyGS0
+TTYReset=no
+TTYVHangup=no
+SHELL_EOF
+cat > /newroot/etc/systemd/system/sirius-evidence.service <<'EVIDENCE_EOF'
+[Unit]
+Description=Record existing-rootfs acceptance evidence
+DefaultDependencies=no
+[Service]
+Type=oneshot
+ExecStart=/run/sirius-evidence.sh
+StandardOutput=append:/run/sirius-cache/sirius-existing.log
+StandardError=append:/run/sirius-cache/sirius-existing.log
+EVIDENCE_EOF
+cat > /run/sirius-evidence.sh <<'SCRIPT_EOF'
+#!/bin/busybox sh
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+echo SYSTEMD_ACCEPTANCE_BEGIN
+id
+cat /proc/1/comm
+readlink /proc/1/exe
+cat /etc/os-release
+cat /etc/alpine-release
+/sbin/apk --version
+/bin/busybox ifconfig usb0
+cat /sys/class/udc/*/state
+cat /proc/mounts
+# A second RO mount exposes original files, not the tmpfs overrides.
+mkdir -p /run/original-root
+if /bin/busybox mount -t ext4 -o ro,noload "$SIRIUS_ROOT_LOOP" /run/original-root; then
+  if ( cd /run/original-root && /bin/busybox sha256sum -c /run/sirius-baseline.sha256 ); then echo BASELINE_PASS; else echo BASELINE_FAIL; fi
+  /bin/busybox umount /run/original-root
 else
-  mkdir -p /newroot
-  ROOT_MOUNTED=no
-  mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
-  if [ "$ROOT_MOUNTED" = no ]; then
-    say "rootfs: $ROOTDEV not formatted - creating ext filesystem (first boot)"
-    # busybox's mke2fs has no -t option (unlike e2fsprogs); it always creates
-    # an ext2 filesystem, which the kernel's ext4 driver mounts just fine.
-    /bin/busybox mke2fs -F -L sirius-root "$ROOTDEV" 2>&1 | tail -n 2
-    mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
-    if [ "$ROOT_MOUNTED" = no ]; then
-      mount -t ext2 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
-    fi
-    [ "$ROOT_MOUNTED" = no ] && say "rootfs: mount after mkfs failed"
-  fi
-
-  if [ "$ROOT_MOUNTED" = no ]; then
-    say "rootfs: cannot mount $ROOTDEV"
-  else
-    if [ ! -x /newroot/sbin/init ]; then
-      say "rootfs: unpacking Alpine minirootfs onto $ROOTDEV"
-      tar xzf /alpine-rootfs.tar.gz -C /newroot 2>&1 | tail -n 3
-      [ -f /newroot/etc/inittab ] && \
-        echo 'ttyGS0::respawn:/sbin/getty -L ttyGS0 115200 vt100' >> /newroot/etc/inittab
-      [ -f /newroot/etc/inittab ] && \
-        echo 'tty0::respawn:/sbin/getty -L tty0 115200 vt100' >> /newroot/etc/inittab
-      mkdir -p /newroot/proc /newroot/sys /newroot/dev /newroot/root
-      sync
-      say "rootfs: unpacked $(ls /newroot | head -c 200)"
-    fi
-    if [ -x /newroot/sbin/init ]; then
-      say "rootfs: switching to $ROOTDEV"
-      exec /bin/busybox switch_root /newroot /sbin/init
-    fi
-    say "rootfs: no usable init on $ROOTDEV"
-  fi
+  echo BASELINE_MOUNT_FAIL
 fi
-
-say "falling back to initramfs debug shell"
-telnetd -l /bin/sh -p 23 2>/dev/null || true
-exec /bin/sh
+ echo SYSTEMD_ACCEPTANCE_END
+SCRIPT_EOF
+chmod 0755 /run/sirius-evidence.sh
+export SIRIUS_ROOT_LOOP="$LOOP"
+printf 'Environment=SIRIUS_ROOT_LOOP=%s\n' "$LOOP" >> /newroot/etc/systemd/system/sirius-evidence.service
+# Preserve the active configfs under sysfs and keep logs outside the old root.
+mkdir -p /run/sirius-cache
+if [ -n "$LOG" ]; then
+  say "PRE_SWITCH_ROOT loop=$LOOP (ro); disk files preserved"
+  mount --move /mnt/log /run/sirius-cache || fatal "cache mount move"
+  LOG=/run/sirius-cache/sirius-existing.log
+fi
+# Let PID 1 log to kmsg, and retain an independent cache capture across handover.
+cp /bin/busybox /run/sirius-busybox
+if [ -n "$LOG" ]; then
+  /run/sirius-busybox cat /dev/kmsg > /run/sirius-cache/sirius-kernel.log 2>&1 &
+fi
+mount --move /dev /newroot/dev || fatal "move dev"
+mount --move /proc /newroot/proc || fatal "move proc"
+mount --move /sys /newroot/sys || fatal "move sys"
+say "exec switch_root to systemd diagnostic target"
+mount --move /run /newroot/run || fatal "move run"
+exec /bin/busybox switch_root /newroot /sbin/init --unit=sirius-diagnostic.target --log-target=kmsg --log-level=debug
 INIT_EOF
 chmod +x "$IRD/init"
 
