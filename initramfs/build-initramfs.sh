@@ -68,7 +68,9 @@ try_cross_compile() {
                 -e 's/^CONFIG_STATIC=n$/CONFIG_STATIC=y/' \
                 -e 's/^CONFIG_TC=y$/# CONFIG_TC is not set/' \
                 -e 's/^# CONFIG_TELNETD is not set/CONFIG_TELNETD=y/' \
-                -e 's/^# CONFIG_UDHCPD is not set/CONFIG_UDHCPD=y/' .config \
+                -e 's/^# CONFIG_UDHCPD is not set/CONFIG_UDHCPD=y/' \
+                -e 's/^# CONFIG_MKFS_EXT2 is not set/CONFIG_MKFS_EXT2=y/' \
+                -e 's/^# CONFIG_MKE2FS is not set/CONFIG_MKE2FS=y/' .config \
       && grep -q '^CONFIG_STATIC=y' .config \
       && ! grep -q '^CONFIG_TC=y' .config \
       && make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- >/dev/null
@@ -79,6 +81,11 @@ try_cross_compile() {
 }
 
 BB_CACHE="${HOME:-/tmp}/.cache/sirius-busybox"
+
+# --- Alpine rootfs payload ------------------------------------------------
+# Carried inside the initramfs and unpacked onto the eMMC on first boot, so
+# no host-side network transfer is needed to get a userland onto the device.
+ALPINE_URL="https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/aarch64/alpine-minirootfs-3.20.9-aarch64.tar.gz"
 
 rm -rf "$IRD"
 mkdir -p "$IRD"/{bin,etc,proc,sys,dev,lib,lib64}
@@ -94,6 +101,20 @@ else
   cp "$IRD/bin/busybox" "$BB_CACHE/busybox"
 fi
 echo "initramfs busybox e_machine: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | tr -d ' \n') (b700 = AArch64)"
+
+# Alpine minirootfs payload, unpacked to the eMMC by /init on first boot.
+ALPINE_CACHE="${HOME:-/tmp}/.cache/sirius-alpine"
+ALPINE_TGZ="alpine-minirootfs-3.20.9-aarch64.tar.gz"
+mkdir -p "$ALPINE_CACHE"
+if [ -s "$ALPINE_CACHE/$ALPINE_TGZ" ] && gzip -t "$ALPINE_CACHE/$ALPINE_TGZ" 2>/dev/null; then
+  echo "  alpine rootfs from cache"
+else
+  echo "  downloading $ALPINE_URL"
+  curl -fsSL --max-time 300 "$ALPINE_URL" -o "$ALPINE_CACHE/$ALPINE_TGZ"
+  gzip -t "$ALPINE_CACHE/$ALPINE_TGZ"
+fi
+cp "$ALPINE_CACHE/$ALPINE_TGZ" "$IRD/alpine-rootfs.tar.gz"
+echo "  alpine payload: $(stat -c%s "$IRD/alpine-rootfs.tar.gz") bytes"
 
 for a in sh ls cat mount umount echo ip ifconfig udhcpd udhcpc \
          mdev sleep mkdir ln dmesg reboot poweroff \
@@ -186,6 +207,53 @@ dmesg | tail -n 60 >> "${LOG:-/dev/null}" 2>/dev/null
 dmesg | tail -n 15
 [ -n "$LOG" ] && sync && umount /mnt/log 2>/dev/null
 
+# --- hand over to the eMMC rootfs ----------------------------------------
+# The bootloader supplies its own root= (pointing at a PARTUUID that does not
+# exist here), so the initramfs mounts the userdata partition itself and
+# switch_roots into it. On the very first boot it formats the partition and
+# unpacks the Alpine minirootfs carried inside this initramfs, so the device
+# needs no host-side transfer to get a userland.
+ROOTDEV=""
+for d in /dev/mmcblk0p81 /dev/disk/by-name/userdata; do
+  [ -b "$d" ] && { ROOTDEV="$d"; break; }
+done
+
+if [ -z "$ROOTDEV" ]; then
+  say "rootfs: no eMMC userdata partition found"
+else
+  mkdir -p /newroot
+  ROOT_MOUNTED=no
+  mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
+  if [ "$ROOT_MOUNTED" = no ]; then
+    say "rootfs: $ROOTDEV not ext4 - formatting (first boot)"
+    mkfs.ext2 -F -q -L sirius-root "$ROOTDEV" >/dev/null 2>&1 \
+      || say "rootfs: mkfs failed"
+    mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
+  fi
+
+  if [ "$ROOT_MOUNTED" = no ]; then
+    say "rootfs: cannot mount $ROOTDEV"
+  else
+    if [ ! -x /newroot/sbin/init ]; then
+      say "rootfs: unpacking Alpine minirootfs onto $ROOTDEV"
+      tar xzf /alpine-rootfs.tar.gz -C /newroot 2>&1 | tail -n 3
+      [ -f /newroot/etc/inittab ] && \
+        echo 'ttyGS0::respawn:/sbin/getty -L ttyGS0 115200 vt100' >> /newroot/etc/inittab
+      [ -f /newroot/etc/inittab ] && \
+        echo 'tty0::respawn:/sbin/getty -L tty0 115200 vt100' >> /newroot/etc/inittab
+      mkdir -p /newroot/proc /newroot/sys /newroot/dev /newroot/root
+      sync
+      say "rootfs: unpacked $(ls /newroot | head -c 200)"
+    fi
+    if [ -x /newroot/sbin/init ]; then
+      say "rootfs: switching to $ROOTDEV"
+      exec switch_root /newroot /sbin/init
+    fi
+    say "rootfs: no usable init on $ROOTDEV"
+  fi
+fi
+
+say "falling back to initramfs debug shell"
 telnetd -l /bin/sh -p 23 2>/dev/null || true
 exec /bin/sh
 INIT_EOF
