@@ -96,7 +96,8 @@ fi
 echo "initramfs busybox e_machine: $(od -An -tx1 -j18 -N2 "$IRD/bin/busybox" | tr -d ' \n') (b700 = AArch64)"
 
 for a in sh ls cat mount umount echo ip ifconfig udhcpd udhcpc \
-         mdev sleep mkdir ln dmesg reboot poweroff; do
+         mdev sleep mkdir ln dmesg reboot poweroff \
+         readlink basename sync head tail true; do
   ln -sf /bin/busybox "$IRD/bin/$a"
 done
 
@@ -106,22 +107,58 @@ cat > "$IRD/init" <<'INIT_EOF'
 mount -t proc none /proc
 mount -t sysfs none /sys
 mount -t devtmpfs none /dev 2>/dev/null || mdev -s
-echo "=== sirius initramfs ==="
-cat /proc/version
-dmesg | tail -n 40
+
+# Persist this boot log on the (ext4) cache partition. TWRP's own kernel
+# overwrites the ramoops/pstore record, so a file here is the only log that
+# survives to be read afterwards.
+LOGDEV=""
+mkdir -p /mnt/log
+for d in /dev/block/by-name/cache /dev/block/mmcblk0p77; do
+  [ -b "$d" ] || continue
+  if mount -t ext4 "$d" /mnt/log 2>/dev/null; then LOGDEV="$d"; break; fi
+done
+LOG=""
+[ -n "$LOGDEV" ] && LOG=/mnt/log/sirius-boot.log
+say() { echo "$@"; [ -n "$LOG" ] && echo "$@" >> "$LOG"; }
+
+if [ -n "$LOG" ]; then
+  say "=== sirius initramfs boot log (logdev=$LOGDEV) ==="
+else
+  echo "=== sirius initramfs (no writable log partition) ==="
+fi
+say "$(cat /proc/version)"
+
+say "--- USB topology ---"
+say "udc:      $(ls /sys/class/udc 2>&1)"
+say "extcon:   $(ls /sys/class/extcon 2>&1)"
+say "a6f8800.usb driver:  $(basename "$(readlink -f /sys/bus/platform/devices/a6f8800.usb/driver 2>/dev/null)" 2>/dev/null)"
+for p in /sys/bus/platform/devices/*usb*phy* /sys/bus/platform/devices/*hsphy*; do
+  [ -e "$p" ] || continue
+  say "phy $(basename "$p"): $(basename "$(readlink -f "$p/driver" 2>/dev/null)" 2>/dev/null)"
+done
+
 if [ -d /sys/kernel/config ]; then
   mount -t configfs none /sys/kernel/config 2>/dev/null || true
   G=/sys/kernel/config/usb_gadget/g1
-  mkdir -p "$G" 2>/dev/null || true
+  mkdir -p "$G" 2>/dev/null || say "gadget: cannot create $G"
   echo 0x2717 > "$G/idVendor" 2>/dev/null || true
   echo 0xff48 > "$G/idProduct" 2>/dev/null || true
   mkdir -p "$G/configs/c.1" "$G/functions/rndis.usb0" 2>/dev/null || true
   ln -sf "$G/functions/rndis.usb0" "$G/configs/c.1/" 2>/dev/null || true
-  UDC=$(ls /sys/class/udc | head -1)
-  echo "$UDC" > "$G/UDC" 2>/dev/null || true
+  UDC=$(ls /sys/class/udc 2>/dev/null | head -1)
+  if [ -n "$UDC" ]; then
+    echo "$UDC" > "$G/UDC" 2>/dev/null && say "gadget: bound to UDC $UDC" || say "gadget: bind to $UDC failed"
+  else
+    say "gadget: NO UDC present -> USB PHY/dwc3 did not come up"
+  fi
 fi
 ifconfig usb0 172.16.42.1 netmask 255.255.0.0 up 2>/dev/null || true
-echo "Listening on 172.16.42.1 (telnetd :23)"
+say "Listening on 172.16.42.1 (telnetd :23)"
+
+dmesg | tail -n 60 >> "${LOG:-/dev/null}" 2>/dev/null
+dmesg | tail -n 15
+[ -n "$LOG" ] && sync && umount /mnt/log 2>/dev/null
+
 telnetd -l /bin/sh -p 23 2>/dev/null || true
 exec /bin/sh
 INIT_EOF
