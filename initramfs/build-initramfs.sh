@@ -70,7 +70,8 @@ try_cross_compile() {
                 -e 's/^# CONFIG_TELNETD is not set/CONFIG_TELNETD=y/' \
                 -e 's/^# CONFIG_UDHCPD is not set/CONFIG_UDHCPD=y/' \
                 -e 's/^# CONFIG_MKFS_EXT2 is not set/CONFIG_MKFS_EXT2=y/' \
-                -e 's/^# CONFIG_MKE2FS is not set/CONFIG_MKE2FS=y/' .config \
+                -e 's/^# CONFIG_MKE2FS is not set/CONFIG_MKE2FS=y/' \
+                -e 's/^# CONFIG_SWITCH_ROOT is not set/CONFIG_SWITCH_ROOT=y/' .config \
       && grep -q '^CONFIG_STATIC=y' .config \
       && ! grep -q '^CONFIG_TC=y' .config \
       && make -j"$(nproc)" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- >/dev/null
@@ -226,8 +227,10 @@ else
   mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
   if [ "$ROOT_MOUNTED" = no ]; then
     say "rootfs: $ROOTDEV not ext4 - formatting (first boot)"
-    mkfs.ext2 -F -q -L sirius-root "$ROOTDEV" >/dev/null 2>&1 \
-      || say "rootfs: mkfs failed"
+    # busybox ships this as mke2fs; there is no mkfs.ext2 symlink.
+    mke2fs -q -F -L sirius-root -t ext4 "$ROOTDEV" 2>/dev/null \
+      || mke2fs -q -F -L sirius-root "$ROOTDEV" 2>/dev/null \
+      || say "rootfs: mke2fs failed"
     mount -t ext4 "$ROOTDEV" /newroot 2>/dev/null && ROOT_MOUNTED=yes
   fi
 
