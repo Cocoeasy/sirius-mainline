@@ -20,8 +20,13 @@ KERNEL_ADDR = 0x00008000
 RAMDISK_ADDR = 0x01000000
 TAGS_ADDR = 0x00000100
 NAME = b"sirius"
+# console=ttyGS0 is listed before console=tty0 on purpose: the last console=
+# becomes /dev/console, so tty0 stays primary, while the USB CDC-ACM port also
+# receives kernel and early-userspace output (it registers a bit late, but the
+# tty console binds when the gadget creates the port).
 CMDLINE = (b"console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA90000 "
-           b"androidboot.hardware=qcom androidboot.console=ttyMSM0 loop.max_part=7 console=tty0 "
+           b"androidboot.hardware=qcom androidboot.console=ttyMSM0 loop.max_part=7 "
+           b"console=ttyGS0,115200 console=tty0 "
            b"clk_ignore_unused pd_ignore_unused")
 ZERO = b"\x00"
 
