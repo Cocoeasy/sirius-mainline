@@ -154,10 +154,11 @@ class CheckpatchGateDecisionTest(unittest.TestCase):
             )
 
     def test_clean_run_passes(self):
-        p = self.run_gate(checkpatch_summary(0, 0, 0))
+        p = self.run_gate(checkpatch_summary(0, 0, 0, lines=525))
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertIn("checkpatch_verdict=pass", p.stdout)
         self.assertIn("checkpatch_errors=0", p.stdout)
+        self.assertIn("checkpatch_lines=525", p.stdout)
 
     def test_warnings_and_checks_do_not_fail(self):
         p = self.run_gate(
@@ -185,6 +186,10 @@ class CheckpatchGateDecisionTest(unittest.TestCase):
         self.assertEqual(p.returncode, 1)
         self.assertIn("checkpatch_verdict=fail", p.stdout)
         self.assertIn("did not complete", p.stderr)
+        # The size is reported so an empty log -- what checkpatch --terse
+        # produced for a clean file, and what made this gate fail a good run --
+        # stays distinguishable from a partially written one.
+        self.assertIn("bytes", p.stderr)
 
     def test_empty_log_fails(self):
         p = self.run_gate("")

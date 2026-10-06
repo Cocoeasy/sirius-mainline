@@ -310,7 +310,9 @@ jobs:
           mkdir -p out
           cd kernel
           rc=0
-          ./scripts/checkpatch.pl --no-tree --terse \
+          # --terse is deliberately NOT passed: on a clean file it suppresses
+          # the run summary as well, which is the only proof the check ran.
+          ./scripts/checkpatch.pl --no-tree \
             -f drivers/gpu/drm/panel/panel-samsung-ea8074.c \
             > ../out/checkpatch.log 2>&1 || rc=$?
           printf 'checkpatch_exit=%s\n' "$rc" >> ../out/checkpatch.log
