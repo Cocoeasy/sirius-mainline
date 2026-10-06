@@ -966,7 +966,8 @@
     "already_verified": [
       "dt_binding_check=pass, dtbs_check=pass, dtbs_findings=0 for the panel binding and the board DTB (run 37432217671) -- the binding compiles as a schema, its example passes, and the built DTB satisfies it.",
       "checkpatch on the new driver: 0 errors, 0 warnings, 671 lines checked. The pinned tree's checkpatch prints no checks column, so that field is n/a. The line count equals the driver the patch adds, which is what ties the verdict to that file.",
-      "No pre-existing EA8074 support and no other Samsung panel driver exist in the pinned tree, so this is a new driver rather than an extension."
+      "No pre-existing EA8074 support and no other Samsung panel driver exist in the pinned tree, so this is a new driver rather than an extension.",
+      "The split series applies in order to the pinned tree and the whole build passes on it: run 37433658312 applied 0001 then 0002, built the kernel and dtbs, and reported dtbs_findings=0, checkpatch_verdict=pass and generator_strict_rc=1 with documented_type_diff_records=13, with both patch digests recorded in provenance."
     ],
     "outstanding": [
       {
