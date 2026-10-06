@@ -295,5 +295,68 @@ class CheckpatchWorkflowWiringTest(unittest.TestCase):
         self.assertIn("out/checkpatch.txt", self.text)
 
 
+class SendableSeriesTest(unittest.TestCase):
+    """The patches must be parseable as mail, not merely as diffs.
+
+    The first version carried From/body/Signed-off-by but no Subject line, so
+    git mailinfo returned no subject at all -- it was still applyable, which is
+    why CI passed, but it was not sendable. These cases ask git's own mail
+    parser, so a header that only looks right does not pass.
+    """
+
+    PATCHES = [
+        "0000-cover-letter.patch",
+        "0001-dt-bindings-display-panel-samsung-ea8074.patch",
+        "0002-drm-panel-samsung-ea8074.patch",
+    ]
+
+    def mailinfo(self, name):
+        path = ROOT / "patches" / "linux" / name
+        p = subprocess.run(
+            ["git", "mailinfo", "/dev/null", "/dev/null"],
+            stdin=open(path, "rb"),
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(p.returncode, 0, p.stderr)
+        fields = {}
+        for line in p.stdout.splitlines():
+            if ": " in line:
+                k, v = line.split(": ", 1)
+                fields[k] = v
+        return fields
+
+    def test_every_patch_parses_as_mail_with_a_subject(self):
+        for name in self.PATCHES:
+            with self.subTest(name=name):
+                f = self.mailinfo(name)
+                self.assertIn("Subject", f, f"{name} has no parseable Subject")
+                self.assertTrue(f["Subject"].strip(), name)
+                self.assertEqual(f.get("Email"), "Cocoeasy@users.noreply.github.com")
+
+    def test_series_patches_are_numbered_in_order(self):
+        # mailinfo strips the [PATCH n/m] prefix (that stripping is itself proof
+        # the prefix is well formed), so read the raw Subject: line to check the
+        # numbering a series is read by.
+        got = []
+        for name in self.PATCHES:
+            text = (ROOT / "patches" / "linux" / name).read_text(encoding="utf-8")
+            subject = next(l for l in text.splitlines() if l.startswith("Subject: "))
+            got.append(subject.split("]", 1)[0].split("[", 1)[1])
+        self.assertEqual(got, ["PATCH 0/2", "PATCH 1/2", "PATCH 2/2"])
+
+    def test_every_patch_still_applies_as_a_diff(self):
+        for name in self.PATCHES[1:]:  # the cover letter has no diff
+            with self.subTest(name=name):
+                p = subprocess.run(
+                    ["git", "apply", "--stat", f"patches/linux/{name}"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(p.returncode, 0, p.stderr)
+                self.assertIn("insertions(+)", p.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

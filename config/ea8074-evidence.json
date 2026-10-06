@@ -123,7 +123,7 @@
     "note": "What the worktree actually contains now, as opposed to the historical snapshot in sources[local_mainline_dts]. Every sha256 is of the file as it exists in this worktree. The dts was edited again after the rail fix, to drop the unused te-gpios property from the panel node, so its sha256 below is the newer one. The earlier blanket statement that none of these files had been compiled or booted is superseded: the patched tree has since been built in CI and the board DTS booted on hardware -- see mainline_hardware_round and the B3 resolution.",
     "files": {
       "patches/linux/0000-cover-letter.patch": {
-        "sha256": "3fe1d90f9515f8527b886a076408ab1252829fa525bb1ef81ddf447f6b8d854e",
+        "sha256": "a6809e60527d6cdb65ecd8789db6c4a4590092eb0d698763103bb4b56f129926",
         "note": "The series cover letter: subject [PATCH 0/2] drm/panel: samsung: add EA8074, the rationale, the build-and-booted status, the packet-type deviation stated as an open risk, and a diffstat generated from git apply --numstat rather than typed. It carries no diff, so the workflow, which applies 0001 and 0002 by name, never touches it. Provenance records this digest."
       },
       "dts/sdm710-xiaomi-sirius.dts": {
@@ -142,11 +142,11 @@
         "note": "Display stack built in (=y) instead of =m, because the test initramfs carries no modules: DRM_MSM_DPU, DRM_MSM_DSI, DRM_MSM_DSI_10NM_PHY, DRM_PANEL_SAMSUNG_EA8074 and BACKLIGHT_CLASS_DEVICE (that one has no default in the pinned Kconfig and is off in defconfig/sdm670.config, so a =y panel driver would otherwise be silently dropped), plus the DRM_MSM dependency helpers (QCOM_AOSS_QMP=y, QCOM_COMMAND_DB=y, QCOM_LLCC=y, QCOM_OCMEM=n)."
       },
       "patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch": {
-        "sha256": "d0d6e8a16d904d76f8c67f02679a17cd621f8061634aac91996f4cb964f16123",
+        "sha256": "c7abbf017f46ba644317727398c970f0e7247a0b996e28f6210869805f4866bf",
         "note": "The binding alone, first in the series, because that is the order a mainline DRM submission uses. Split out of the former single combined patch: the split is a partition of the original hunks, the two patches touch disjoint files, and applying both reproduces the original combined patch byte for byte (asserted when the split was made). Now carries a submission header -- From, a dt-bindings: subject, a body and a Signed-off-by for Cocoeasy <Cocoeasy@users.noreply.github.com> -- added with the submitter's explicit authorisation. git apply --stat still parses the diff body, so the header did not disturb the patch."
       },
       "patches/linux/0002-drm-panel-samsung-ea8074.patch": {
-        "sha256": "e6080d1ffdbc232e763c10c392ca8a32efc66920b141d4af3f14f69f068ca2dd",
+        "sha256": "5424765a3145291b00aab36db444e7c03f31a173c5a49ced4d60fa16e62c57cc",
         "note": "Kconfig, Makefile and the driver, second in the series, now with a drm/panel: subject, a body and the same Signed-off-by. History: Actions run 37406099638 at project commit 2bf35ad failed compiling the earlier combined patch because a wildcard backlight path prematurely closed a C block comment; the patch now uses a device-name placeholder with a matching post-image Git blob hash. Later runs built it for real: 37419562653 and 37426527622 produced boot.img and booted it on the device, and 37433658312 applied this split series and passed every gate."
       }
     },
@@ -962,7 +962,7 @@
     "scope_note": "What is ready to send and what is not, read from the tree rather than from intent. Written after CI run 37432217671 on commit 7e82352.",
     "artefact": {
       "form": "a three-file series in submission order: patches/linux/0000-cover-letter.patch, then 0001-dt-bindings-display-panel-samsung-ea8074.patch, then 0002-drm-panel-samsung-ea8074.patch",
-      "shape": "0001 and 0002 each carry a submission header -- From, subject with the subsystem prefix, body and Signed-off-by -- followed by the diff body; 0000 is the cover letter, which has no diff. git apply still applies 0001 and 0002 by name, so CI is unaffected by the cover letter's presence.",
+      "shape": "each carries a full mail header -- an mbox From line, From:, Date:, Subject: with the [PATCH n/2] series number and the subsystem prefix, then the body and Signed-off-by, then the diff (0000 is the cover letter and has no diff). Earlier these had From/body/Signed-off-by but no Subject line: git mailinfo returned no subject at all, so they applied but were not sendable. They are now parsed by git's own mail parser, and a regression test in scripts/test_workflow_gates.py fails if any patch stops parsing with a subject. git apply still applies 0001 and 0002 by name, so CI is unaffected.",
       "added_lines": {
         "drivers/gpu/drm/panel/panel-samsung-ea8074.c": 671,
         "Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml": 71,
@@ -971,6 +971,7 @@
       }
     },
     "already_verified": [
+      "The three files parse as mail under git's own parser: git mailinfo reports Author, Email, a Subject and a Date for each, with subjects numbered [PATCH 0/2], [PATCH 1/2], [PATCH 2/2]. This was NOT true before -- they had no Subject line and mailinfo returned none, so they applied but were not sendable. scripts/test_workflow_gates.py now asserts it.",
       "dt_binding_check=pass, dtbs_check=pass, dtbs_findings=0 for the panel binding and the board DTB (run 37432217671) -- the binding compiles as a schema, its example passes, and the built DTB satisfies it.",
       "checkpatch on the new driver: 0 errors, 0 warnings, 671 lines checked. The pinned tree's checkpatch prints no checks column, so that field is n/a. The line count equals the driver the patch adds, which is what ties the verdict to that file.",
       "No pre-existing EA8074 support exists in the pinned tree, so this is a new driver rather than an extension. The tree does contain other Samsung panel drivers (panel-samsung-ams639rq08.c, -db7430.c, -ld9040.c and more); an earlier version of this line said there were none, which was wrong. Note the one this driver models itself on, panel-samsung-ams639rq08.c, is a video-burst panel (MIPI_DSI_MODE_VIDEO_BURST) rather than a command-mode one -- it is cited for API usage and the shared DSI host, not for the display mode.",
