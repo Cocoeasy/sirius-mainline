@@ -290,9 +290,39 @@ jobs:
             out/dt_binding_check.log out/dtbs_check.log \
             "$rc_binding" "$rc_dtbs" > out/schema.txt || status=$?
           printf 'schema_scope=%s\n' "$DT_SCHEMA_FILES" >> out/schema.txt
-          cat out/checks.txt out/schema.txt
+          cat             out/checks.txt
+            out/schema.txt
+            out/checkpatch.log
+            out/checkpatch.txt
           if [ "$status" -ne 0 ]; then
             echo "::error::DT schema gate failed (see the schema.txt artifact)"
+            exit 1
+          fi
+
+      # Upstream readiness: the panel driver is a brand-new file that upstream
+      # has to review, so the style check a submission gets is run here, on the
+      # same pinned tree. Scope is the C file only -- the binding is already
+      # covered by dt_binding_check and yamllint above, and checkpatch -f on a
+      # YAML schema would add noise rather than signal. The decision lives in
+      # scripts/checkpatch_gate.sh and is tested by scripts/test_workflow_gates.py:
+      # an ERROR fails, WARNING/CHECK are recorded but do not, and a run that
+      # never completed fails instead of reading as clean.
+      - name: Upstream style gate (checkpatch on the new panel driver)
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cd kernel
+          rc=0
+          ./scripts/checkpatch.pl --no-tree --terse \
+            -f drivers/gpu/drm/panel/panel-samsung-ea8074.c \
+            > ../out/checkpatch.log 2>&1 || rc=$?
+          printf 'checkpatch_exit=%s\n' "$rc" >> ../out/checkpatch.log
+          cd ..
+          status=0
+          sh scripts/checkpatch_gate.sh out/checkpatch.log > out/checkpatch.txt || status=$?
+          cat out/checkpatch.txt
+          if [ "$status" -ne 0 ]; then
+            echo "::error::checkpatch reported errors (see the checkpatch artifact)"
             exit 1
           fi
 
@@ -331,6 +361,7 @@ jobs:
             printf 'kernel .config sha256  : %s\n' "$(sha256sum kernel/.config | cut -d' ' -f1)"
             printf 'command table          : %s\n' "$(tr '\n' ' ' < out/checks.txt)"
             printf 'device tree schema     : %s\n' "$(tr '\n' ' ' < out/schema.txt)"
+            printf 'upstream style         : %s\n' "$(tr '\n' ' ' < out/checkpatch.txt)"
             printf 'tool versions          : %s\n' "$(tr '\n' ' ' < out/tool-versions.txt | cut -c1-200)"
             printf 'dt schema packages     : %s\n' "$(tr '\n' ' ' < out/dtvenv-versions.txt)"
             printf 'packet equivalence     : NOT VERIFIED - the packet-type deviation is documented, not proven harmless\n'
@@ -340,7 +371,7 @@ jobs:
           ( cd out && sha256sum \
               boot.img Image.gz sdm710-xiaomi-sirius.dtb initramfs.cpio.gz \
               config kernel-release provenance.txt checks.txt schema.txt \
-              tool-versions.txt dtvenv-versions.txt > manifest.txt )
+              checkpatch.txt tool-versions.txt dtvenv-versions.txt > manifest.txt )
           cat out/provenance.txt
           cat out/manifest.txt
 

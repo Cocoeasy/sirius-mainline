@@ -114,5 +114,110 @@ class WorkflowWiringTest(unittest.TestCase):
         self.assertIn("DT schema gate failed", self.text)
 
 
+CHECKPATCH_GATE = ROOT / "scripts" / "checkpatch_gate.sh"
+
+
+def checkpatch_summary(errors, warnings, checks, lines=520):
+    """checkpatch's own final line, in the exact shape checkpatch.pl prints."""
+    return "total: %d errors, %d warnings, %d checks, %d lines checked\n" % (
+        errors,
+        warnings,
+        checks,
+        lines,
+    )
+
+
+class CheckpatchGateDecisionTest(unittest.TestCase):
+    """The upstream style gate: ERROR fails, WARNING and CHECK do not.
+
+    A brand-new driver routinely carries CHECK lines, and upstream does not
+    reject a series for them, so failing on those would turn the gate into noise
+    everyone learns to ignore. The opposite mistake is the dangerous one: a
+    checkpatch that never ran leaves a log with no summary, and a naive reading
+    of an empty log is "no errors found".
+    """
+
+    def run_gate(self, log_text):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "checkpatch.log"
+            log.write_text(log_text, encoding="utf-8")
+            return subprocess.run(
+                ["sh", str(CHECKPATCH_GATE), str(log)],
+                capture_output=True,
+                text=True,
+            )
+
+    def test_clean_run_passes(self):
+        p = self.run_gate(checkpatch_summary(0, 0, 0))
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("checkpatch_verdict=pass", p.stdout)
+        self.assertIn("checkpatch_errors=0", p.stdout)
+
+    def test_warnings_and_checks_do_not_fail(self):
+        p = self.run_gate(
+            "WARNING: line over 80 characters\n"
+            "CHECK: Alignment should match open parenthesis\n"
+            + checkpatch_summary(0, 3, 7)
+        )
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("checkpatch_verdict=pass", p.stdout)
+        self.assertIn("checkpatch_warnings=3", p.stdout)
+        self.assertIn("checkpatch_checks=7", p.stdout)
+
+    def test_a_single_error_fails_and_is_shown(self):
+        p = self.run_gate(
+            "ERROR: code indent should use tabs where possible\n"
+            + checkpatch_summary(1, 4, 2)
+        )
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("checkpatch_verdict=fail", p.stdout)
+        self.assertIn("checkpatch_errors=1", p.stdout)
+        self.assertIn("code indent", p.stderr)
+
+    def test_incomplete_run_fails_instead_of_reading_as_clean(self):
+        p = self.run_gate("Can't open drivers/gpu/drm/panel/panel-samsung-ea8074.c\n")
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("checkpatch_verdict=fail", p.stdout)
+        self.assertIn("did not complete", p.stderr)
+
+    def test_empty_log_fails(self):
+        p = self.run_gate("")
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("checkpatch_verdict=fail", p.stdout)
+
+    def test_trailing_exit_code_line_does_not_hide_the_summary(self):
+        # The workflow appends checkpatch_exit= after the run; that must not
+        # stop the summary from being found.
+        p = self.run_gate(checkpatch_summary(0, 1, 0) + "checkpatch_exit=0\n")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("checkpatch_warnings=1", p.stdout)
+
+    def test_script_parses_as_posix_sh(self):
+        p = subprocess.run(
+            ["sh", "-n", str(CHECKPATCH_GATE)], capture_output=True, text=True
+        )
+        self.assertEqual(p.returncode, 0, p.stderr)
+
+
+class CheckpatchWorkflowWiringTest(unittest.TestCase):
+    """The gate only does anything if the workflow runs checkpatch and asks it."""
+
+    def setUp(self):
+        self.text = WORKFLOW.read_text(encoding="utf-8")
+
+    def test_workflow_runs_checkpatch_on_the_new_driver(self):
+        self.assertIn("./scripts/checkpatch.pl", self.text)
+        self.assertIn("drivers/gpu/drm/panel/panel-samsung-ea8074.c", self.text)
+
+    def test_workflow_routes_the_decision_through_the_script(self):
+        self.assertIn("scripts/checkpatch_gate.sh", self.text)
+
+    def test_workflow_does_not_hardcode_a_verdict(self):
+        self.assertNotIn("checkpatch_verdict=pass", self.text)
+
+    def test_workflow_propagates_the_gate_failure(self):
+        self.assertIn("checkpatch reported errors", self.text)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

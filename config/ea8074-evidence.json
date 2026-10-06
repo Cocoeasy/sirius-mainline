@@ -549,13 +549,13 @@
     },
     {
       "item": "Where the mainline 2 ms / 11 ms reset timing is encoded",
-      "status": "unresolved",
-      "detail": "compatible = \"samsung,ea8074\" in the local DTS has no matching upstream driver in sdm670-mainline/linux at 75d5a9875202, and no reset delay properties are carried in the panel node. The 2/11 ms values exist only in the vendor FDT."
+      "status": "resolved",
+      "detail": "This was recorded when no driver existed for the compatible: the local DTS carried no reset delay properties, so the 2/11 ms values existed only in the vendor FDT. They are now encoded in the driver this work adds -- panel-samsung-ea8074.c defines EA8074_RESET_ASSERT_MS 2 and EA8074_RESET_RELEASE_MS 11 and applies them in ea8074_reset() (assert logical 1, msleep 2, release logical 0, msleep 11). The board DTS deliberately carries no delay properties: the waveform belongs to the driver, so there is nothing to encode in the panel node."
     },
     {
       "item": "Live GPIO5 / GPIO75 / GPIO76 pin state",
-      "status": "unresolved",
-      "detail": "Not observable in the recovery round: debugfs is not mounted, no lines are pre-exported, and exporting lines was outside the permitted operation set. This concerns the pre-fix wiring observation; it is not re-derived from the current worktree. Subsequently read on the approved mainline round through the mounted debugfs -- see mainline_hardware_round.observations.gpio and the B4 resolution."
+      "status": "resolved",
+      "detail": "Unobservable in the recovery round: debugfs was not mounted, no lines were pre-exported, and exporting them was outside that round's permitted operation set. It was read afterwards on the approved mainline rounds through the mounted debugfs -- gpio5 out high, gpio10 func1, gpio75 out high, gpio76 in low. See mainline_hardware_round.observations.gpio, mainline_hardware_round.reflash_round.post_flash_readbacks.tlmm_state and the B4 resolution."
     },
     {
       "item": "Whether the EA8074 accepts the 13 long-write records as 0x15 short writes",
