@@ -978,7 +978,8 @@
       "The split series applies in order to the pinned tree and the whole build passes on it: run 37433658312 applied 0001 then 0002, built the kernel and dtbs, and reported dtbs_findings=0, checkpatch_verdict=pass and generator_strict_rc=1 with documented_type_diff_records=13, with both patch digests recorded in provenance.",
       "Adding the submission header did not disturb that: run 37435310073 applied both patches again, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the two new digests, so the sendable files are the ones CI actually built.",
       "The cover letter is inert to the build and is tracked anyway: run 37436626482 applied the same two patches, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the cover letter's digest alongside theirs, so the whole sendable series can be tied to the build.",
-      "The schema gate now requires positive evidence that its checks ran, and real CI confirms the guard is not a false alarm: run 37445180265 reports dt_binding_check=pass dtbs_check=pass dtbs_findings=0 with dt_binding_check_ran=5 and dtbs_check_ran=1, so the DTC line and the schema markers are present in a real run rather than assumed."
+      "The schema gate now requires positive evidence that its checks ran, and real CI confirms the guard is not a false alarm: run 37445180265 reports dt_binding_check=pass dtbs_check=pass dtbs_findings=0 with dt_binding_check_ran=5 and dtbs_check_ran=1, so the DTC line and the schema markers are present in a real run rather than assumed.",
+      "The mbox header did not disturb the build either: run 37446762435 applied both patches, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the three new digests (cover a6809e60, binding c7abbf01, driver 5424765a), so the sendable files are again the ones CI builds."
     ],
     "outstanding": [
       {
