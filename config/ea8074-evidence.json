@@ -137,8 +137,8 @@
         "note": "Display stack built in (=y) instead of =m, because the test initramfs carries no modules: DRM_MSM_DPU, DRM_MSM_DSI, DRM_MSM_DSI_10NM_PHY, DRM_PANEL_SAMSUNG_EA8074 and BACKLIGHT_CLASS_DEVICE (that one has no default in the pinned Kconfig and is off in defconfig/sdm670.config, so a =y panel driver would otherwise be silently dropped), plus the DRM_MSM dependency helpers (QCOM_AOSS_QMP=y, QCOM_COMMAND_DB=y, QCOM_LLCC=y, QCOM_OCMEM=n)."
       },
       "patches/linux/0001-drm-panel-samsung-ea8074.patch": {
-        "sha256": "8d986b85c9d996daa89896e9be056b98ea3b76d1b1e310808efcfc959eb1034d",
-        "note": "Panel driver + binding; verified with git apply --check and a real git apply into a scratch copy of the pinned upstream commit 75d5a9875202673b11a8eac05e6f489ba0c87a05, where the applied driver is byte-identical to the reviewed source. It has never been compiled."
+        "sha256": "61bb143394959dc8149da559f4ca160f23e11073accf55c370b12e4394b76875",
+        "note": "Panel driver + binding; Actions run 37406099638 at project commit 2bf35ad failed compiling the earlier patch because a wildcard backlight path prematurely closed a C block comment. The local patch now uses a device-name placeholder, with a matching post-image Git blob hash. git apply --check and application to a temporary copy of the pinned upstream panel Kconfig/Makefile both passed; the applied ea8074_create_backlight function passes an isolated Clang syntax check with stub API declarations, and reintroducing the original wildcard fails that same check. This is not a full kernel compilation or schema/hardware validation; the corrected patch has not been rebuilt in Actions."
       }
     },
     "rail_mapping_status": "resolved_pending_review",

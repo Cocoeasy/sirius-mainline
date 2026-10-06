@@ -33,7 +33,7 @@ index ca6f2462e21dba27e2ceab6a95d807e295ad496a..5093c022a9d250d73d0845b13365a6b0
  obj-$(CONFIG_DRM_PANEL_SAMSUNG_S6D16D0) += panel-samsung-s6d16d0.o
 diff --git a/drivers/gpu/drm/panel/panel-samsung-ea8074.c b/drivers/gpu/drm/panel/panel-samsung-ea8074.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..df979299b3db41042e5ef917c8ffc69f898d92f4
+index 0000000000000000000000000000000000000000..939c79ed8e94a40acbb5d9f7f3b30e6c2f5a81e6
 --- /dev/null
 +++ b/drivers/gpu/drm/panel/panel-samsung-ea8074.c
 @@ -0,0 +1,671 @@
@@ -555,7 +555,7 @@ index 0000000000000000000000000000000000000000..df979299b3db41042e5ef917c8ffc69f
 +	 * the vendor's own initialisation value, so the driver never turns the
 +	 * panel on by itself. For the first hardware test a conservative
 +	 * ordinary level should be written once the first frame is up, e.g.
-+	 *     echo 10 > /sys/class/backlight/*/brightness
++	 *     echo 10 > /sys/class/backlight/<device>/brightness
 +	 * 10 is a bring-up test choice for this run, not this panel's
 +	 * default and not its doze level: the doze LBM/HBM values are 10/133
 +	 * (dtsi L69-70) and are not used here, and no initial brightness is
