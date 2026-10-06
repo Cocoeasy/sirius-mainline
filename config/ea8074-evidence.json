@@ -941,6 +941,7 @@
       "panel": {
         "observed_lit": true,
         "confirmation": "The user looked at the device and confirmed the screen is lit and shows content.",
+        "what_the_content_is": "The content is kernel log text: the boot image is a bring-up image (kernel plus a minimal initramfs) and cmdline carries console=tty0 alongside console=ttyMSM0,115200n8, so fbcon draws the kernel log on the framebuffer. Seeing legible log text is therefore evidence that the panel, DSI link and DPU scanout are all working -- the framebuffer content is really being displayed. It is not evidence of anything above that: no GPU or compositor is involved, so this does not show the display stack as a whole is ready, only the panel path.",
         "evidence_level": "operational: a panel seen working, which is not by itself the vendor-comparable trace that B2 asks for."
       }
     },
