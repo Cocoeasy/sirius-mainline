@@ -113,6 +113,12 @@ class WorkflowWiringTest(unittest.TestCase):
     def test_workflow_propagates_the_gate_failure(self):
         self.assertIn("DT schema gate failed", self.text)
 
+    def test_schema_gate_step_still_prints_both_verdicts(self):
+        # A bad edit once split this single line, and the runner then failed the
+        # step with "out/schema.txt: Permission denied" instead of printing the
+        # verdict. Keep it as one command.
+        self.assertIn("cat out/checks.txt out/schema.txt", self.text)
+
 
 CHECKPATCH_GATE = ROOT / "scripts" / "checkpatch_gate.sh"
 
@@ -217,6 +223,11 @@ class CheckpatchWorkflowWiringTest(unittest.TestCase):
 
     def test_workflow_propagates_the_gate_failure(self):
         self.assertIn("checkpatch reported errors", self.text)
+
+    def test_checkpatch_evidence_is_uploaded(self):
+        # The verdict is only evidence if the artifact actually carries it.
+        self.assertIn("out/checkpatch.log", self.text)
+        self.assertIn("out/checkpatch.txt", self.text)
 
 
 if __name__ == "__main__":

@@ -290,10 +290,7 @@ jobs:
             out/dt_binding_check.log out/dtbs_check.log \
             "$rc_binding" "$rc_dtbs" > out/schema.txt || status=$?
           printf 'schema_scope=%s\n' "$DT_SCHEMA_FILES" >> out/schema.txt
-          cat             out/checks.txt
-            out/schema.txt
-            out/checkpatch.log
-            out/checkpatch.txt
+          cat out/checks.txt out/schema.txt
           if [ "$status" -ne 0 ]; then
             echo "::error::DT schema gate failed (see the schema.txt artifact)"
             exit 1
@@ -430,6 +427,8 @@ jobs:
             out/cmdtable-report-diff.txt
             out/checks.txt
             out/schema.txt
+            out/checkpatch.log
+            out/checkpatch.txt
             out/tool-versions.txt
             out/dtvenv-freeze.txt
             out/dtvenv-versions.txt
