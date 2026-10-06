@@ -213,12 +213,14 @@ jobs:
           set -uo pipefail
           mkdir -p out
           DRIVER=kernel/drivers/gpu/drm/panel/panel-samsung-ea8074.c
+          # The runner invokes bash with -e. Capture expected/nonzero statuses
+          # in OR lists so both diagnostics run without disabling errexit.
+          strict_rc=0
           python3 scripts/gen_ea8074_cmd_table.py --check-c "$DRIVER" \
-            > out/cmdtable-strict.txt 2>&1
-          strict_rc=$?
+            > out/cmdtable-strict.txt 2>&1 || strict_rc=$?
+          report_rc=0
           python3 scripts/gen_ea8074_cmd_table.py --check-c "$DRIVER" --report-diff \
-            > out/cmdtable-report-diff.txt 2>&1
-          report_rc=$?
+            > out/cmdtable-report-diff.txt 2>&1 || report_rc=$?
           count=$(grep -c 'TYPE-DIFF' out/cmdtable-report-diff.txt || true)
           {
             printf 'generator_strict_rc=%s\n' "$strict_rc"
