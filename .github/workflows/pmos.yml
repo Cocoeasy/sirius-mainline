@@ -45,6 +45,7 @@ jobs:
         run: |
           cp -r pmaports/device-xiaomi-sirius            pmaports-upstream/device/testing/
           cp -r pmaports/linux-postmarketos-qcom-sdm710  pmaports-upstream/device/testing/
+          cp -r pmaports/firmware-xiaomi-sirius          pmaports-upstream/device/testing/
           ls pmaports-upstream/device/testing/ | grep -E 'sirius|sdm710'
 
       - name: Write pmbootstrap config + seed work dir

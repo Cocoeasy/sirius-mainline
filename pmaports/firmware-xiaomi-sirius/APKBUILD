@@ -1,0 +1,49 @@
+# Reference: <https://postmarketos.org/devicepkg>
+#
+# Device-specific GPU zap shader for the Xiaomi Mi 8 SE (xiaomi-sirius).
+#
+# The GPU on this board is an Adreno 615 (the device tree reports
+# qcom,adreno-615.0 and the stock vendor image ships a615_zap.*), so the zap
+# shader is a615_zap, not a630_zap.
+#
+# The zap shader is signed and therefore device-specific, which is why
+# firmware-qcom-adreno deliberately strips every *_zap* file and why
+# linux-firmware does not carry a615_zap.mbn. This package supplies the
+# missing half: the five files were extracted read-only from this device's own
+# stock vendor image
+# (sirius_images_V9.5.6.0.OEBCNFA_20180605.0000.00_8.1_cn/images/vendor.img,
+# firmware/a615_zap.{mdt,b00,b01,b02,elf}), so they are the ones this unit is
+# provisioned with.
+#
+# The generic a630_gmu.bin and a630_sqe.fw come from firmware-qcom-adreno-a630
+# and are NOT duplicated here.
+pkgname=firmware-xiaomi-sirius
+pkgver=1
+pkgrel=0
+pkgdesc="GPU zap shader firmware for the Xiaomi Mi 8 SE"
+url="https://postmarketos.org"
+arch="aarch64"
+license="custom"
+options="!check !strip !archcheck !tracedeps"
+
+source="
+	a615_zap.mdt
+	a615_zap.b00
+	a615_zap.b01
+	a615_zap.b02
+	a615_zap.elf
+"
+
+package() {
+	# Same location the kernel requests from: dmesg shows
+	# "Direct firmware load for qcom/a630_sqe.fw", i.e. /usr/lib/firmware/qcom/.
+	install -Dm644 "$srcdir"/a615_zap.* -t "$pkgdir"/usr/lib/firmware/qcom/
+}
+
+sha512sums="
+07daf298668712a2f59a3c8219c3480a4e34cdd255e073ba0cb916124feef657684b5c9ef3bea30367ec0e060c47cd23fe0f7f65ae42bb7dfe5578875bcaa015  a615_zap.mdt
+58e155faa262bb78eb6ce6f948ada139ee6baaae1e3f5d1d6fc9a7647ee17db0bbabd959ba448f1cc91ddf96f22c10c574cb8bb0cecd0a161ce11a88fe7d3b17  a615_zap.b00
+4010ad4173f2d69ee80f6fe90869b63575ea60382386d009b32f7485e496a554c4af6a25ae900d1619ecd6e2818f8d681c4a2729dfc3a71bae27aefa9789f9a4  a615_zap.b01
+f6f0131c4e45d860f3553e3ecc9e417de69efd5a4838f8c1d42c8c494349056b15d7ab23008a81c3cda55e08f2038a492d13c7c1f2cc87afa24715668948f9d5  a615_zap.b02
+e67a6f1ca4ebdbd0b4d56bbef16258edf791d04e7a5d2d9e44a6784953d38770d8d19fe62096a0b05f22d6527c75c62168b14de4756ac79286445a8849d444e4  a615_zap.elf
+"

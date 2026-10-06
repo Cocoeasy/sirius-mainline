@@ -13,6 +13,7 @@ depends="
 	mkbootimg
 	postmarketos-base
 	firmware-qcom-adreno-a630
+	firmware-xiaomi-sirius
 "
 makedepends="devicepkg-dev"
 source="
