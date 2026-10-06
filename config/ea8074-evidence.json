@@ -972,11 +972,15 @@
     "outstanding": [
       {
         "item": "No commit header",
-        "detail": "A submission needs a commit message per patch -- dt-bindings: for the binding, drm/panel: for the driver, naming the panel, the device it is found in, and the reset waveform and supply order the driver reproduces -- plus one Signed-off-by per author on each. Neither patch has either yet."
+        "detail": "A submission needs a commit message per patch -- dt-bindings: for the binding, drm/panel: for the driver, naming the panel, the device it is found in, and the reset waveform and supply order the driver reproduces -- plus one Signed-off-by per author on each. Neither patch has either yet. Drafts for both are recorded below."
       },
       {
-        "item": "The binding's maintainers entry is a placeholder",
-        "detail": "Now carries the project's GitHub identity, Cocoeasy <Cocoeasy@users.noreply.github.com>. A GitHub noreply address is deliverable through GitHub, but a mainline binding normally wants the author's real name and a signed-off-by they control, so the submitter should confirm this is what they want published or replace it before sending."
+        "item": "Signed-off-by needs the submitter's authorisation",
+        "detail": "This is the one thing that cannot be completed on the submitter's behalf. A Signed-off-by is a Developer Certificate of Origin assertion made by the person signing, so it is written only once the submitter says to. Until then the patches stay unsigned and the drafts below stay drafts."
+      },
+      {
+        "item": "Binding identity to confirm",
+        "detail": "The binding's maintainers entry is now the project's GitHub identity, Cocoeasy <Cocoeasy@users.noreply.github.com>. A GitHub noreply address is deliverable through GitHub, but a mainline binding usually wants the author's real name and an address they control, and reviewers do ask. The submitter should confirm this is what they want published or give a replacement before the series goes out."
       },
       {
         "item": "Target tree decided, patch split not yet done",
@@ -984,8 +988,37 @@
       },
       {
         "item": "MAINTAINERS coverage not checked",
-        "detail": "Not verifiable from this worktree: CI fetches the pinned tree and only drivers/ and Documentation/ are kept locally, and MAINTAINERS is in neither. To be confirmed against the target tree before sending."
+        "detail": "Checked against mainline's MAINTAINERS file. There is no EA8074 entry and no catch-all for drivers/gpu/drm/panel/, so the driver is covered by DRM DRIVERS (Airlie, Vetter) and DRM DRIVERS AND MISC GPU PATCHES (Lankhorst, Ripard, Zimmermann, list dri-devel@lists.freedesktop.org, tree drm-misc); the binding is covered by those two plus OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS (Rob Herring, Krzysztof Kozlowski, Conor Dooley, list devicetree@vger.kernel.org). So both patches go to dri-devel, and the binding is additionally copied to devicetree. Individual panel entries in that file are per-panel rather than a pattern, so adding one is a follow-up, not a requirement for the first submission."
+      },
+      {
+        "item": "Commit messages drafted, not inserted",
+        "detail": "Drafts exist, both with a subsystem prefix, the panel, the device and what the driver reproduces. They are recorded here rather than written into the patch files: neither patch may be signed off until the submitter authorises a Signed-off-by, because that is their DCO assertion and not something that can be filled in on their behalf. The drafts also state the packet-type deviation as an open risk rather than as an equivalence, matching blocker B2."
       }
-    ]
+    ],
+    "commit_message_drafts": {
+      "note": "Drafts only. No Signed-off-by line appears in either, because signing off is the submitter's own DCO assertion; the body text is written to be accurate as-is and the driver body deliberately carries the packet-type deviation as an open risk, not as an equivalence.",
+      "0001_dt_bindings": {
+        "subject": "dt-bindings: display: panel: add Samsung EA8074",
+        "body": [
+          "Document the Samsung EA8074, a 5.88 inch 1080x2244 MIPI-DSI command mode AMOLED panel with a 10-bit DCS brightness control, as found in the Xiaomi Mi 8 SE (xiaomi-sirius, SDM710).",
+          "",
+          "The panel takes a 1.8 V I/O rail and a 3.0 V source rail and a single active-low reset line; the reset waveform itself is the driver's business and is not described here.",
+          "",
+          "Signed-off-by: (to be added by the submitter)"
+        ]
+      },
+      "0002_drm_panel": {
+        "subject": "drm/panel: samsung: add EA8074",
+        "body": [
+          "Add a driver for the Samsung EA8074 command mode AMOLED panel (1080x2244) found in the Xiaomi Mi 8 SE.",
+          "",
+          "The mode, lane count, reset waveform, supply order and delays, on/off command arrays and brightness encoding all come from the panel's vendor device tree and driver at SDM710-Development/android_kernel_xiaomi_sdm710@06a01bad; the API usage follows panel-samsung-ams639rq08.c, a command mode AMOLED panel on the same DSI host.",
+          "",
+          "One deviation is deliberate and is called out in the driver, not hidden: 13 vendor records use DCS long write (0x39) with a two-byte payload, and the exported helper derives the data type from the buffer length, so those go out as 0x15 short-write-with-parameter with the same command and parameter. Whether the panel accepts 0x15 there is not verified. Closing it needs either hardware confirmation or a typed-DCS helper in the DRM core, which is a separate change and is not part of this patch.",
+          "",
+          "Signed-off-by: (to be added by the submitter)"
+        ]
+      }
+    }
   }
 }
