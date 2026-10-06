@@ -333,6 +333,9 @@
     "qcom_mdss_dsi_panel_width": 1080,
     "qcom_mdss_dsi_panel_height": 2244,
     "qcom_mdss_dsi_panel_framerate": 60,
+    "qcom_mdss_pan_physical_width_dimension": 65,
+    "qcom_mdss_pan_physical_height_dimension": 135,
+    "physical_dimension_note": "Mirrored from the pinned vendor dtsi (arch/arm64/boot/dts/qcom/dsi-panel-ss-fhd-ea8074-cmd.dtsi lines 49-50, qcom,mdss-pan-physical-width-dimension = <65> and height = <135>). These are what the driver's width_mm/height_mm come from. They were missing from this fixture until an independent review flagged that the driver's file header claims every hardware value traces to pinned sources; the value was always in the vendor dtsi, only the fixture mirror was absent.",
     "qcom_mdss_dsi_h_front_porch": 48,
     "qcom_mdss_dsi_h_back_porch": 48,
     "qcom_mdss_dsi_h_pulse_width": 16,
@@ -1006,8 +1009,8 @@
         "detail": "Found by the independent review and confirmed: disp_vci_vreg carries startup-delay-us = <4000> and the driver also sleeps EA8074_VCI_ON_DELAY_MS = 10 after the bulk enable, so ~14 ms elapses where the vendor applied 10 ms (the fixture records the vendor's start-delay-us as inert downstream, so only the 10 ms was effective there). The driver's supply comment does not mention the 4 ms. This is a real behavioural difference and is left open rather than papered over: it needs either dropping one delay or documenting the 14 ms as deliberate, which is a driver change and therefore wants the submitter's call."
       },
       {
-        "item": "Mode width_mm/height_mm have no fixture evidence",
-        "detail": "Found by the independent review: the driver sets width_mm = 65 and height_mm = 135 citing vendor qcom,mdss-pan-physical-width-dimension = <65> and height = <135>, but the fixture records no physical-dimension property anywhere. The file header claims every hardware value comes from pinned sources, so either the fixture should record these two or the driver should mark them unverified. Cosmetic (affects the advertised physical size, not the mode), hence left open."
+        "item": "Mode width_mm/height_mm traced to the vendor dtsi",
+        "detail": "Found by the independent review: the driver sets width_mm = 65 and height_mm = 135 and the fixture did not mirror the source. Checked: the pinned vendor dtsi does carry qcom,mdss-pan-physical-width-dimension = <65> and height = <135> (dsi-panel-ss-fhd-ea8074-cmd.dtsi lines 49-50), so the driver's value is correct and the review's claim that it is unevidenced was itself partly wrong -- the evidence existed, only the fixture copy was missing. It is now mirrored into timing as qcom_mdss_pan_physical_width_dimension/height_dimension, so the file header's claim that every value traces to pinned sources holds."
       },
       {
         "item": "Independent re-review started, not discharged",
