@@ -53,25 +53,27 @@ prepare() {
 	# the panel's own symbol has no default, and BACKLIGHT_CLASS_DEVICE -- which
 	# its Kconfig depends on -- is not set by either defconfig or sdm670.config,
 	# so without both the driver would be silently dropped from the build.
+	# The panel resolves to =m rather than =y because DRM itself is =m here, so
+	# the assertion below accepts either; the module is loaded early via the
+	# device package's modules-initfs.
 	printf '%s\n' \
 		'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
-		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=y' > "$srcdir"/ea8074.config
+		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' > "$srcdir"/ea8074.config
 	scripts/kconfig/merge_config.sh -m .config "$srcdir"/ea8074.config
 
 	make ARCH="$_carch" olddefconfig
 
-	# Diagnose which dependency keeps the panel symbol from sticking.
-	echo "--- ea8074 config state after olddefconfig ---"
-	grep -E 'CONFIG_DRM_PANEL_SAMSUNG_EA8074|CONFIG_BACKLIGHT_CLASS_DEVICE|CONFIG_BACKLIGHT=|CONFIG_DRM_MIPI_DSI|^CONFIG_DRM=|^CONFIG_OF=|CONFIG_DRM_MSM' .config || true
-	echo "--- end ---"
-
-	# Fail loudly rather than shipping a kernel without the panel driver.
-	for sym in CONFIG_DRM_PANEL_SAMSUNG_EA8074 CONFIG_BACKLIGHT_CLASS_DEVICE; do
-		grep -q "^$sym=y" .config || {
-			echo "FATAL: $sym did not stick in .config" >&2
-			exit 1
-		}
-	done
+	# Fail loudly rather than shipping a kernel without the panel driver. The
+	# symbol is a tristate, so =m is as valid as =y.
+	grep -qE '^CONFIG_DRM_PANEL_SAMSUNG_EA8074=[ym]$' .config || {
+		echo "FATAL: CONFIG_DRM_PANEL_SAMSUNG_EA8074 is not enabled in .config" >&2
+		grep -E 'CONFIG_DRM_PANEL_SAMSUNG_EA8074|CONFIG_BACKLIGHT_CLASS_DEVICE|CONFIG_DRM_MIPI_DSI|^CONFIG_DRM=' .config >&2 || true
+		exit 1
+	}
+	grep -qE '^CONFIG_BACKLIGHT_CLASS_DEVICE=[ym]$' .config || {
+		echo "FATAL: CONFIG_BACKLIGHT_CLASS_DEVICE is not enabled in .config" >&2
+		exit 1
+	}
 }
 
 build() {

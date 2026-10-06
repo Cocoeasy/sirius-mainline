@@ -4,5 +4,6 @@ gpu_sched
 i2c_qcom_geni
 mdt_loader
 msm
+panel_samsung_ea8074
 stmfts
 gpi
