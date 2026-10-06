@@ -60,6 +60,11 @@ prepare() {
 
 	make ARCH="$_carch" olddefconfig
 
+	# Diagnose which dependency keeps the panel symbol from sticking.
+	echo "--- ea8074 config state after olddefconfig ---"
+	grep -E 'CONFIG_DRM_PANEL_SAMSUNG_EA8074|CONFIG_BACKLIGHT_CLASS_DEVICE|CONFIG_BACKLIGHT=|CONFIG_DRM_MIPI_DSI|^CONFIG_DRM=|^CONFIG_OF=|CONFIG_DRM_MSM' .config || true
+	echo "--- end ---"
+
 	# Fail loudly rather than shipping a kernel without the panel driver.
 	for sym in CONFIG_DRM_PANEL_SAMSUNG_EA8074 CONFIG_BACKLIGHT_CLASS_DEVICE; do
 		grep -q "^$sym=y" .config || {
