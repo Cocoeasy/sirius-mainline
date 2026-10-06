@@ -129,7 +129,7 @@
       "dts/sdm710-xiaomi-sirius.dts": {
         "sha256": "2cd89d79179f47502d70258e78e854b516dd66f9ede0c5d189afdcf66d0bf2cf",
         "lines": {
-          "disp_vci_vreg": "\"disp_vci_vreg\": compatible = \"regulator-fixed\", regulator-name = \"disp_vci_vreg\", gpio = <&tlmm 5 GPIO_ACTIVE_HIGH>, regulator-min/max-microvolt = <3000000>, regulator-enable-ramp-delay = <233>, startup-delay-us = <4000>, enable-active-high, regulator-boot-on",
+          "disp_vci_vreg": "\"disp_vci_vreg\": compatible = \"regulator-fixed\", regulator-name = \"disp_vci_vreg\", regulator-min/max-microvolt = <3000000>, gpios = <&tlmm 5 GPIO_ACTIVE_HIGH>, enable-active-high, startup-delay-us = <4000>, regulator-boot-on. There is no regulator-enable-ramp-delay here (an earlier description said <233>; that was wrong) and the property is the plural gpios, not gpio.",
           "panel_vddio_supply": "vddio-supply = <&vreg_l11a_1p8>, i.e. the PM660 (compatible = \"qcom,pm660-rpmh-regulators\", pmic-id = \"a\") L11 rail at 1.8 V - not a PM660L rail",
           "panel_vci_supply": "vci-supply = <&disp_vci_vreg> (the 3.0 V fixed rail on tlmm GPIO5)",
           "removed": "vdd3p3-supply and the old disp_3p0_en regulator on tlmm GPIO76 are gone; the vendor panel-supply-entries list is vddio 1.8 V + vci 3.0 V only",
@@ -142,7 +142,7 @@
         "note": "Display stack built in (=y) instead of =m, because the test initramfs carries no modules: DRM_MSM_DPU, DRM_MSM_DSI, DRM_MSM_DSI_10NM_PHY, DRM_PANEL_SAMSUNG_EA8074 and BACKLIGHT_CLASS_DEVICE (that one has no default in the pinned Kconfig and is off in defconfig/sdm670.config, so a =y panel driver would otherwise be silently dropped), plus the DRM_MSM dependency helpers (QCOM_AOSS_QMP=y, QCOM_COMMAND_DB=y, QCOM_LLCC=y, QCOM_OCMEM=n)."
       },
       "patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch": {
-        "sha256": "582dee807d1aebe0c35af7d20aeed7ebb87164a6c06e2ca4a8b158775185731c",
+        "sha256": "d0d6e8a16d904d76f8c67f02679a17cd621f8061634aac91996f4cb964f16123",
         "note": "The binding alone, first in the series, because that is the order a mainline DRM submission uses. Split out of the former single combined patch: the split is a partition of the original hunks, the two patches touch disjoint files, and applying both reproduces the original combined patch byte for byte (asserted when the split was made). Now carries a submission header -- From, a dt-bindings: subject, a body and a Signed-off-by for Cocoeasy <Cocoeasy@users.noreply.github.com> -- added with the submitter's explicit authorisation. git apply --stat still parses the diff body, so the header did not disturb the patch."
       },
       "patches/linux/0002-drm-panel-samsung-ea8074.patch": {
@@ -614,9 +614,9 @@
       "severity": "high",
       "item": "No independent re-review of the driver, binding, DTS and evidence",
       "required_action": "Have the driver patch, the binding, the dts/sdm710-xiaomi-sirius.dts change, the command-table generator and this evidence re-reviewed by a second, independent thread; the in-line fixes were made by the same thread that wrote the earlier version.",
-      "status": "go_ahead_given_review_outstanding",
-      "still_open": true,
-      "detail": "The user gave an explicit go-ahead for the hardware round and it was performed (boot flash, boot, panel observed lit), so the go-ahead half is discharged. The independent re-review half is not: no second thread has reviewed the driver, the binding, the dts/sdm710-xiaomi-sirius.dts change, the generator or this evidence."
+    "status": "go_ahead_given_review_outstanding",
+    "still_open": true,
+    "detail": "The user gave an explicit go-ahead for the hardware round and it was performed (boot flash, boot, panel observed lit), so the go-ahead half is discharged. The independent re-review half is partially addressed but NOT discharged: a second, independent thread (a model thread, not the one that wrote the code) has now reviewed the driver, the binding, the dts change, the generator and this evidence, and its findings are recorded in upstream_readiness. That reduces the single-author problem, but B5 asks for an independent re-review in the sense a submission needs, and a model thread does not replace a human reviewer's sign-off. So this blocker stays open and gating until a human review happens or the submitter explicitly accepts the model review as sufficient."
     }
   ],
   "downstream_source_evidence": {
@@ -944,7 +944,7 @@
         "dsi0vco_clk": 1984247900,
         "disp_cc_mdss_pclk0_clk": 165353992,
         "tlmm_state": "gpio5 out high, gpio10 func1, gpio75 out high, gpio76 in low -- unchanged from the first round",
-        "backlight": "fb0/blank written 0 and brightness written 512; actual_brightness reads back 512",
+        "backlight": "fb0/blank written 0 and brightness written 512; actual_brightness reads back 512. This only echoes the requested level: the driver's get_brightness returns the cached request and issues no DCS read-back, so it is not evidence that the panel received the write. The panel being lit is the evidence for that, not this read-back.",
         "crtc_status": "crtc-0 reports crtc:67 1080x2244, mixer:0 ctl:2, plane:37 stage:1, fb:68 format XR24 1080x2244, sspp[0]:sspp_8 -- the frame buffer is bound and being scanned out.",
         "vblank": "Re-sampled with the first round's command (grep fps /sys/kernel/debug/dri/1/crtc-0/status and grep dsi_isr /proc/interrupts, 10 s apart): count 293 over total 9951 ms, fps:29, total_framecount 1635 -> 1684, dsi_isr 1658 -> 1707. So the ~29.4 Hz rate and the frame-to-interrupt coupling reproduce exactly after the te-gpios removal, which neither caused nor changed them; grep -ci tear over dmesg is still 0.",
         "dmesg": "dsi_pll_10nm_vco_prepare still prints 'DSI PLL(0) lock failed, status=0x00000000' at 0.948 s, before the DPU binds at 1.435 s; the PLL is locked by then, as dsi0vco_clk running at 1984247900 Hz shows. Identical to the first round, and still an ordering artefact rather than a failure."
@@ -970,7 +970,7 @@
     "already_verified": [
       "dt_binding_check=pass, dtbs_check=pass, dtbs_findings=0 for the panel binding and the board DTB (run 37432217671) -- the binding compiles as a schema, its example passes, and the built DTB satisfies it.",
       "checkpatch on the new driver: 0 errors, 0 warnings, 671 lines checked. The pinned tree's checkpatch prints no checks column, so that field is n/a. The line count equals the driver the patch adds, which is what ties the verdict to that file.",
-      "No pre-existing EA8074 support and no other Samsung panel driver exist in the pinned tree, so this is a new driver rather than an extension.",
+      "No pre-existing EA8074 support exists in the pinned tree, so this is a new driver rather than an extension. The tree does contain other Samsung panel drivers (panel-samsung-ams639rq08.c, -db7430.c, -ld9040.c and more); an earlier version of this line said there were none, which was wrong. Note the one this driver models itself on, panel-samsung-ams639rq08.c, is a video-burst panel (MIPI_DSI_MODE_VIDEO_BURST) rather than a command-mode one -- it is cited for API usage and the shared DSI host, not for the display mode.",
       "The split series applies in order to the pinned tree and the whole build passes on it: run 37433658312 applied 0001 then 0002, built the kernel and dtbs, and reported dtbs_findings=0, checkpatch_verdict=pass and generator_strict_rc=1 with documented_type_diff_records=13, with both patch digests recorded in provenance.",
       "Adding the submission header did not disturb that: run 37435310073 applied both patches again, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the two new digests, so the sendable files are the ones CI actually built.",
       "The cover letter is inert to the build and is tracked anyway: run 37436626482 applied the same two patches, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the cover letter's digest alongside theirs, so the whole sendable series can be tied to the build."
@@ -997,12 +997,24 @@
         "detail": "No EA8074 entry and no catch-all for drivers/gpu/drm/panel/ exists, so the files are covered by DRM DRIVERS AND MISC GPU PATCHES (F: drivers/gpu/drm/, F: Documentation/devicetree/bindings/display/, dri-devel@). An individual per-panel entry is normally added by the maintainers who take the driver, and a first-time submitter listing themselves as a section owner is discouraged, so no MAINTAINERS patch is part of this series. A submitter who wants one can send it as a follow-up. The insertion point would be right after DRM DRIVER FOR SAMSUNG DB7430 PANELS (line 8288 of the pinned tree's MAINTAINERS)."
       },
       {
-        "item": "MAINTAINERS coverage not checked",
-        "detail": "Checked against mainline's MAINTAINERS file. There is no EA8074 entry and no catch-all for drivers/gpu/drm/panel/, so the driver is covered by DRM DRIVERS (Airlie, Vetter) and DRM DRIVERS AND MISC GPU PATCHES (Lankhorst, Ripard, Zimmermann, list dri-devel@lists.freedesktop.org, tree drm-misc); the binding is covered by those two plus OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS (Rob Herring, Krzysztof Kozlowski, Conor Dooley, list devicetree@vger.kernel.org). So both patches go to dri-devel, and the binding is additionally copied to devicetree. Individual panel entries in that file are per-panel rather than a pattern, so adding one is a follow-up, not a requirement for the first submission."
-      },
-      {
         "item": "Commit messages inserted",
         "detail": "Both subjects, bodies and sign-offs are now in the patch files themselves, with the submitter's authorisation for the sign-off. The drafts below are kept as the record of what was agreed before insertion; the patches are now the source of truth."
+      },
+      {
+        "item": "VCI delay applied twice, not yet reconciled",
+        "detail": "Found by the independent review and confirmed: disp_vci_vreg carries startup-delay-us = <4000> and the driver also sleeps EA8074_VCI_ON_DELAY_MS = 10 after the bulk enable, so ~14 ms elapses where the vendor applied 10 ms (the fixture records the vendor's start-delay-us as inert downstream, so only the 10 ms was effective there). The driver's supply comment does not mention the 4 ms. This is a real behavioural difference and is left open rather than papered over: it needs either dropping one delay or documenting the 14 ms as deliberate, which is a driver change and therefore wants the submitter's call."
+      },
+      {
+        "item": "Mode width_mm/height_mm have no fixture evidence",
+        "detail": "Found by the independent review: the driver sets width_mm = 65 and height_mm = 135 citing vendor qcom,mdss-pan-physical-width-dimension = <65> and height = <135>, but the fixture records no physical-dimension property anywhere. The file header claims every hardware value comes from pinned sources, so either the fixture should record these two or the driver should mark them unverified. Cosmetic (affects the advertised physical size, not the mode), hence left open."
+      },
+      {
+        "item": "Independent re-review started, not discharged",
+        "detail": "B5 asks for a review by a thread other than the one that wrote the code. That has now partly happened: a second, independent model thread examined the driver, binding, DTS, fixture and generator. It independently decoded the command arrays from the raw bytes and confirmed the driver's C table record by record, confirmed the mode arithmetic and the absence of memory-safety defects, and found the schema-gate hole (fixed) plus the VCI double-delay and the unevidenced width_mm/height_mm recorded above. Two of its findings were checked and confirmed by the author; the rest are recorded as open rather than silently accepted. This is progress on B5 but not its discharge: a model thread is not a human reviewer, and the first review attempt had to be discarded because its own summary contradicted its evidence, so B5 stays open and gating."
+      },
+      {
+        "item": "MAINTAINERS coverage not checked",
+        "detail": "Checked against mainline's MAINTAINERS file. There is no EA8074 entry and no catch-all for drivers/gpu/drm/panel/, so the driver is covered by DRM DRIVERS (Airlie, Vetter) and DRM DRIVERS AND MISC GPU PATCHES (Lankhorst, Ripard, Zimmermann, list dri-devel@lists.freedesktop.org, tree drm-misc); the binding is covered by those two plus OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS (Rob Herring, Krzysztof Kozlowski, Conor Dooley, list devicetree@vger.kernel.org). So both patches go to dri-devel, and the binding is additionally copied to devicetree. Individual panel entries in that file are per-panel rather than a pattern, so adding one is a follow-up, not a requirement for the first submission."
       }
     ],
     "commit_message_drafts": {

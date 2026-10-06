@@ -76,7 +76,7 @@ index 0000000000000000000000000000000000000000..1c73b0840b451ee7c698dcc5467211f7
 +            reg = <0>;
 +
 +            vddio-supply = <&vreg_l11a_1p8>;
-+            vci-supply = <&vreg_disp_vci_3p0>;
++            vci-supply = <&disp_vci_vreg>;
 +
 +            reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
 +

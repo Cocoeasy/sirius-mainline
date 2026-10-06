@@ -42,14 +42,25 @@ KCONFIG_NOISE = (
 
 CLEAN_TAIL = "  DTC [C] arch/arm64/boot/dts/qcom/sdm710-xiaomi-sirius.dtb\n"
 
+# Verbatim shape from run 37432217671's dt_binding_check.log: the markers that
+# prove the binding check actually ran. The gate requires one of these, because
+# an empty log with rc 0 is indistinguishable from a clean pass.
+BINDING_OK = (
+    "  SCHEMA  Documentation/devicetree/bindings/processed-schema.json\n"
+    "  CHKDT   ./Documentation/devicetree/bindings\n"
+    "  LINT    ./Documentation/devicetree/bindings\n"
+    "  DTEX    Documentation/devicetree/bindings/display/panel/"
+    "samsung,ea8074.example.dts\n"
+)
+
 
 class SchemaGateDecisionTest(unittest.TestCase):
-    def run_gate(self, dtbs_log, rc_binding="0", rc_dtbs="0"):
+    def run_gate(self, dtbs_log, rc_binding="0", rc_dtbs="0", binding_log=BINDING_OK):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
             blog = tmp / "dt_binding_check.log"
             dlog = tmp / "dtbs_check.log"
-            blog.write_text("", encoding="utf-8")
+            blog.write_text(binding_log, encoding="utf-8")
             dlog.write_text(dtbs_log, encoding="utf-8")
             return subprocess.run(
                 ["sh", str(GATE), DTB, str(blog), str(dlog), rc_binding, rc_dtbs],
@@ -70,10 +81,11 @@ class SchemaGateDecisionTest(unittest.TestCase):
         self.assertIn("dtbs_check=pass", p.stdout)
         self.assertIn("dtbs_findings=0", p.stdout)
 
-    def test_kconfig_noise_alone_does_not_fail(self):
-        p = self.run_gate(KCONFIG_NOISE)
-        self.assertEqual(p.returncode, 0, p.stderr)
-        self.assertIn("dtbs_check=pass", p.stdout)
+    # NOTE: an older case here asserted that kconfig noise *alone* passes. That
+    # premise is what the review found to be wrong: noise without a DTC line
+    # means the check did not run, which must fail. The original intent -- that
+    # unrelated noise must not fail the gate -- is preserved by
+    # test_clean_log_passes above, where the noise rides along with the DTC line.
 
     def test_make_status_is_still_honoured(self):
         p = self.run_gate(CLEAN_TAIL, rc_dtbs="2")
@@ -95,6 +107,33 @@ class SchemaGateDecisionTest(unittest.TestCase):
     def test_script_parses_as_posix_sh(self):
         p = subprocess.run(["sh", "-n", str(GATE)], capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stderr)
+
+    # --- the "did it run at all" hole, found by review ---
+
+    def test_empty_dtbs_log_does_not_pass(self):
+        # make prints nothing when the DTB is already up to date, so the check
+        # never runs. rc 0 plus an empty log must not read as a clean pass.
+        p = self.run_gate("")
+        self.assertEqual(p.returncode, 1, p.stdout)
+        self.assertIn("dtbs_check=fail", p.stdout)
+        self.assertIn("did not run", p.stderr)
+
+    def test_dtbs_log_with_only_kconfig_noise_does_not_pass(self):
+        p = self.run_gate(KCONFIG_NOISE)
+        self.assertEqual(p.returncode, 1, p.stdout)
+        self.assertIn("dtbs_check=fail", p.stdout)
+
+    def test_empty_binding_log_does_not_pass(self):
+        p = self.run_gate(KCONFIG_NOISE + CLEAN_TAIL, binding_log="")
+        self.assertEqual(p.returncode, 1, p.stdout)
+        self.assertIn("dt_binding_check=fail", p.stdout)
+        self.assertIn("did not run", p.stderr)
+
+    def test_run_markers_are_reported(self):
+        p = self.run_gate(KCONFIG_NOISE + CLEAN_TAIL)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("dtbs_check_ran=1", p.stdout)
+        self.assertIn("dt_binding_check_ran=", p.stdout)
 
 
 class WorkflowWiringTest(unittest.TestCase):
