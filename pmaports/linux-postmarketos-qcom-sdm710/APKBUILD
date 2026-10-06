@@ -32,6 +32,8 @@ _tag="sdm670-v$pkgver"
 source="
 	https://gitlab.com/sdm670-mainline/linux/-/archive/$_tag/linux-$_tag.tar.gz
 	sdm710-xiaomi-sirius.dts
+	0001-dt-bindings-display-panel-samsung-ea8074.patch
+	0002-drm-panel-samsung-ea8074.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -45,7 +47,26 @@ prepare() {
 
 	make ARCH="$_carch" defconfig
 	scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
+
+	# The EA8074 panel driver and its binding arrive as patches (source= above,
+	# applied by default_prepare). Two config symbols must then be forced on:
+	# the panel's own symbol has no default, and BACKLIGHT_CLASS_DEVICE -- which
+	# its Kconfig depends on -- is not set by either defconfig or sdm670.config,
+	# so without both the driver would be silently dropped from the build.
+	printf '%s\n' \
+		'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
+		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=y' > "$srcdir"/ea8074.config
+	scripts/kconfig/merge_config.sh -m .config "$srcdir"/ea8074.config
+
 	make ARCH="$_carch" olddefconfig
+
+	# Fail loudly rather than shipping a kernel without the panel driver.
+	for sym in CONFIG_DRM_PANEL_SAMSUNG_EA8074 CONFIG_BACKLIGHT_CLASS_DEVICE; do
+		grep -q "^$sym=y" .config || {
+			echo "FATAL: $sym did not stick in .config" >&2
+			exit 1
+		}
+	done
 }
 
 build() {
@@ -74,5 +95,7 @@ package() {
 }
 sha512sums="
 SKIP  linux-sdm670-v7.1.3.tar.gz
-06249c6110e38e7939efb89a9bc68060fd9c0b85cb53902d3f6279df4088a2901d0c15aadb6030d0bcbfb1f8ef6d2791a03f0218edeab4fa2fe57e3fae183263  sdm710-xiaomi-sirius.dts
+afbc85b15af25bc52a3c4af1c36aea2a0e8688973c886deb57bb95eec9a8760be8ec46835950d5e9d6affea563e49d5ab6ddf2feca1460303bd01bdc71c7c941  sdm710-xiaomi-sirius.dts
+121cac2f8d98f355fc897d37cff9adae90501086fa70bad3687dc281f6cb21a3e5dd0d085c2844aa7606a53b35d6621e6487a16624444af84dee70e30080e00f  0001-dt-bindings-display-panel-samsung-ea8074.patch
+6007ddabb6e9414542f3bdc308a789c0e1f056cf100ec70de0fe57c21dbb8d2600ecba9a0ce99ae464e076872d4e09cd0717ee38e7035ac0e6c9454d16d5f50e  0002-drm-panel-samsung-ea8074.patch
 "
