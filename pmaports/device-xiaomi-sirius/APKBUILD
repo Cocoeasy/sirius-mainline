@@ -12,6 +12,7 @@ depends="
 	linux-postmarketos-qcom-sdm710
 	mkbootimg
 	postmarketos-base
+	firmware-qcom-adreno-a630
 "
 makedepends="devicepkg-dev"
 source="
