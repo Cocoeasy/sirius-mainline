@@ -4,3 +4,4 @@ stock/
 *.img
 *.dtb
 *.cpio.gz
+out_ci_*/

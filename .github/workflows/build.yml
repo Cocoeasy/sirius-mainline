@@ -360,6 +360,7 @@ jobs:
             printf 'kernel release         : %s\n' "$KR"
             printf 'panel binding sha256   : %s\n' "$(sha256sum patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch | cut -d' ' -f1)"
             printf 'panel driver sha256    : %s\n' "$(sha256sum patches/linux/0002-drm-panel-samsung-ea8074.patch | cut -d' ' -f1)"
+            printf 'series cover sha256    : %s\n' "$(sha256sum patches/linux/0000-cover-letter.patch | cut -d' ' -f1)"
             printf 'sirius.config sha256   : %s\n' "$(sha256sum config/sirius.config | cut -d' ' -f1)"
             printf 'board dts sha256       : %s\n' "$(sha256sum dts/sdm710-xiaomi-sirius.dts | cut -d' ' -f1)"
             printf 'kernel .config sha256  : %s\n' "$(sha256sum kernel/.config | cut -d' ' -f1)"

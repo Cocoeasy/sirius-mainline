@@ -1,0 +1,39 @@
+From: Cocoeasy <Cocoeasy@users.noreply.github.com>
+
+[PATCH 0/2] drm/panel: samsung: add EA8074
+
+This adds a driver for the Samsung EA8074 command mode AMOLED panel
+(1080x2244) found in the Xiaomi Mi 8 SE (xiaomi-sirius, SDM710), together
+with its device tree binding.
+
+The panel is driven through the SDM710 DSI host in command mode. The mode,
+lane count, reset waveform, supply order and delays, on/off command arrays
+and the brightness encoding all come from the panel's vendor device tree and
+driver at SDM710-Development/android_kernel_xiaomi_sdm710@06a01bad; the
+kernel API usage follows panel-samsung-ams639rq08.c, a command mode AMOLED
+panel on the same DSI host. Nothing was guessed and nothing was taken from a
+different panel.
+
+The series has been built and run: it compiles against a pinned tree, its
+binding passes dt_binding_check and dtbs_check, checkpatch reports no errors
+or warnings, and the resulting image was booted on the device, where the
+panel comes up and displays.
+
+One deviation from the vendor command arrays is deliberate and is stated in
+the driver and in patch 2's commit message rather than hidden: 13 records
+use DCS long write (0x39) with a two-byte payload, and the exported helper
+derives the data type from the buffer length, so those are sent as 0x15
+short-write-with-parameter with the same command and parameter. Whether the
+panel accepts 0x15 there is not verified. Closing it needs either hardware
+confirmation or a typed-DCS helper in the DRM core, which is a separate
+change and is not part of this series.
+
+Cocoeasy (2):
+  dt-bindings: display: panel: add Samsung EA8074
+  drm/panel: samsung: add EA8074
+
+ Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml |   71 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ drivers/gpu/drm/panel/Kconfig                                       |   10 ++++++++++
+ drivers/gpu/drm/panel/Makefile                                      |    1 +
+ drivers/gpu/drm/panel/panel-samsung-ea8074.c                        |  671 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 753 insertions(+)

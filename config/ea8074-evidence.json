@@ -954,8 +954,8 @@
   "upstream_readiness": {
     "scope_note": "What is ready to send and what is not, read from the tree rather than from intent. Written after CI run 37432217671 on commit 7e82352.",
     "artefact": {
-      "form": "two patches in submission order: patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch then patches/linux/0002-drm-panel-samsung-ea8074.patch",
-      "shape": "each carries a submission header -- From, subject with the subsystem prefix, body and Signed-off-by -- followed by the diff body. git apply still applies them, so CI is unaffected; the header is what makes them sendable rather than merely applicable.",
+      "form": "a three-file series in submission order: patches/linux/0000-cover-letter.patch, then 0001-dt-bindings-display-panel-samsung-ea8074.patch, then 0002-drm-panel-samsung-ea8074.patch",
+      "shape": "0001 and 0002 each carry a submission header -- From, subject with the subsystem prefix, body and Signed-off-by -- followed by the diff body; 0000 is the cover letter, which has no diff. git apply still applies 0001 and 0002 by name, so CI is unaffected by the cover letter's presence.",
       "added_lines": {
         "drivers/gpu/drm/panel/panel-samsung-ea8074.c": 671,
         "Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml": 71,
@@ -984,8 +984,12 @@
         "detail": "The binding's maintainers entry is Cocoeasy <Cocoeasy@users.noreply.github.com>, and the submitter confirmed that this GitHub identity is what they want published and used for the sign-off. It is deliverable through GitHub; if a reviewer asks for a real name, that is a reply, not a blocker."
       },
       {
-        "item": "Target tree decided, patch split not yet done",
-        "detail": "Decided: mainline DRM (dri-devel). The artefact is now split into the series that implies -- dt-bindings first, drm/panel second, both with a drm/panel: or dt-bindings: subject -- but the two files still carry no commit message or Signed-off-by, so they are not sendable yet."
+        "item": "Target tree and series shape settled",
+        "detail": "Decided: mainline DRM (dri-devel). The artefact is the series that implies: 0001 the binding, 0002 the driver, plus 0000-cover-letter.patch written by hand because the tree is a partial checkout with no history to run git format-patch --cover-letter against. The cover letter's diffstat was generated from git apply --numstat rather than typed, and it states the packet-type deviation as an open risk. The cover letter carries no diff, so the workflow (which applies 0001 then 0002 by name) ignores it; it only shifts the ccache key."
+      },
+      {
+        "item": "MAINTAINERS entry deliberately not added",
+        "detail": "No EA8074 entry and no catch-all for drivers/gpu/drm/panel/ exists, so the files are covered by DRM DRIVERS AND MISC GPU PATCHES (F: drivers/gpu/drm/, F: Documentation/devicetree/bindings/display/, dri-devel@). An individual per-panel entry is normally added by the maintainers who take the driver, and a first-time submitter listing themselves as a section owner is discouraged, so no MAINTAINERS patch is part of this series. A submitter who wants one can send it as a follow-up. The insertion point would be right after DRM DRIVER FOR SAMSUNG DB7430 PANELS (line 8288 of the pinned tree's MAINTAINERS)."
       },
       {
         "item": "MAINTAINERS coverage not checked",
