@@ -587,18 +587,17 @@
 		compatible = "samsung,ea8074";
 		reg = <0>;
 
-		/* TE stays on TLMM GPIO10, exactly as the pinned msm binding and
-		 * the vendor display node have it. Verified against the pinned
-		 * sources: nothing in drm_panel.c, the msm DSI host/manager or
-		 * the panel drivers reads a "te-gpios" gpio descriptor. What
-		 * actually carries the signal is the pinmux below (gpio10 ->
-		 * mdp_vsync), which the DPU command-mode INTF tearcheck reads
-		 * (dpu_encoder_phys_cmd_tearcheck_config()). The property is
-		 * therefore binding documentation rather than driver input; it is
-		 * kept unchanged, and whether tearcheck can stall a frame without
-		 * a valid TE pulse is still unverified on hardware.
+		/* TE reaches the DPU through the pinmux below (gpio10 ->
+		 * mdp_vsync), which the command-mode INTF tearcheck reads
+		 * (dpu_encoder_phys_cmd_tearcheck_config()). No panel, msm DSI
+		 * host or panel driver consumes a "te-gpios" descriptor -- verified
+		 * against the pinned sources (drm_panel.c, the msm DSI host/manager
+		 * and the panel drivers all return no hit) -- so it is deliberately
+		 * not declared here. The binding sets additionalProperties: false,
+		 * and a property no driver reads is schema noise rather than
+		 * documentation. Live state on hardware: gpio10 reads func1
+		 * (mdp_vsync) and gpio75 out high (reset released).
 		 */
-		te-gpios = <&tlmm 10 GPIO_ACTIVE_LOW>;
 		/* Physical reset waveform from the vendor array: LOW 2 ms, then
 		 * HIGH 11 ms. With GPIO_ACTIVE_LOW the driver drives logical 1
 		 * (= physical LOW) for 2 ms and logical 0 (= physical HIGH) for

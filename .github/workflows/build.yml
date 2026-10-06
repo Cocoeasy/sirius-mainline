@@ -69,6 +69,9 @@ jobs:
       - name: Rootfs regression (26 checks)
         run: python3 scripts/test_existing_rootfs.py
 
+      - name: DT schema gate regression (decision, both directions)
+        run: python3 scripts/test_workflow_gates.py
+
       # ---- caches ---------------------------------------------------------
       # The kernel image is never cached: every run compiles the pinned source
       # plus the panel patch. ccache is keyed on the source commit and on the
@@ -268,20 +271,30 @@ jobs:
             }
           done
           # 1) the binding document itself has to compile into a valid schema.
+          rc_binding=0
           PATH="$RUNNER_TEMP/dtvenv/bin:$PATH" make -C kernel ARCH=arm64 \
             dt_binding_check DT_SCHEMA_FILES="$DT_SCHEMA_FILES" \
-            2>&1 | tee out/dt_binding_check.log
+            2>&1 | tee out/dt_binding_check.log || rc_binding=$?
           # 2) the built board DTB has to satisfy it. CHECK_DTBS with
           #    DT_SCHEMA_FILES checks one DTB against one schema.
+          rc_dtbs=0
           PATH="$RUNNER_TEMP/dtvenv/bin:$PATH" make -C kernel ARCH=arm64 \
             CHECK_DTBS=y DT_SCHEMA_FILES="$DT_SCHEMA_FILES" \
-            qcom/sdm710-xiaomi-sirius.dtb 2>&1 | tee out/dtbs_check.log
-          {
-            printf 'dt_binding_check=pass\n'
-            printf 'dtbs_check=pass\n'
-            printf 'schema_scope=%s\n' "$DT_SCHEMA_FILES"
-          } > out/schema.txt
+            qcom/sdm710-xiaomi-sirius.dtb 2>&1 | tee out/dtbs_check.log || rc_dtbs=$?
+          # dtc/schema findings are warnings to make, which still exits 0. The
+          # decision -- including the guard that unrelated kconfig noise must
+          # not fail it -- lives in scripts/schema_gate.sh so it can be tested
+          # without a toolchain (scripts/test_workflow_gates.py).
+          status=0
+          sh scripts/schema_gate.sh sdm710-xiaomi-sirius.dtb \
+            out/dt_binding_check.log out/dtbs_check.log \
+            "$rc_binding" "$rc_dtbs" > out/schema.txt || status=$?
+          printf 'schema_scope=%s\n' "$DT_SCHEMA_FILES" >> out/schema.txt
           cat out/checks.txt out/schema.txt
+          if [ "$status" -ne 0 ]; then
+            echo "::error::DT schema gate failed (see the schema.txt artifact)"
+            exit 1
+          fi
 
       # ---- initramfs + boot image ----------------------------------------
       # Unchanged from the verified setup: the boot packer and the DTBO/QCDT

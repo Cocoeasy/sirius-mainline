@@ -529,21 +529,23 @@ class TestRealFixtureIsConsistent(FixtureTestCase):
     # -- the gate itself --------------------------------------------------
 
     def test_gate_is_closed_by_the_open_blockers_not_by_missing_evidence(self) -> None:
-        """The gate is held closed by what is genuinely still open.
+        """The gate is held closed by what is genuinely open.
 
         The three evidence criteria are satisfied, so the reason cannot be
         missing evidence. B1 (the rail mapping) is deliberately marked
         resolved_pending_review and must no longer gate; B4 is low severity and
         must never gate. The blockers that do gate are the packet-format
-        deviation, the fact that nothing has been built or validated, and the
-        missing independent re-review.
+        deviation and the missing independent re-review. B3 no longer gates:
+        the patched tree has now been built by CI and the resulting boot image
+        was flashed to the device and booted.
         """
         report = self.accept(self.doc(), "gate")
         self.assertEqual(report.evidence_criteria_unmet, [], "all three evidence criteria must be satisfied")
         self.assertTrue(report.hardware_blockers, "a closed gate must list concrete blockers")
         blob = " ".join(report.hardware_blockers)
-        for expected in ("B2", "B3", "B5"):
+        for expected in ("B2", "B5"):
             self.assertIn(expected, blob, f"{expected} must be an open gating blocker")
+        self.assertNotIn("B3", blob, "B3 is closed: the tree was built and booted on hardware")
         self.assertNotIn("B1", blob, "the rail mapping is resolved_pending_review and must not gate")
         self.assertNotIn("B4", blob, "the low-severity debugfs blocker must not gate hardware")
         self.assertFalse(report.hardware_ready)
@@ -1227,7 +1229,7 @@ class TestVerdictsAndCli(FixtureTestCase):
         # blockers that are genuinely still open - and the packet-format
         # deviation is one of them, with both data types named.
         self.assertIn("evidence criteria unmet: none", output)
-        for expected in ("B2", "B3", "B5"):
+        for expected in ("B2", "B5"):
             self.assertIn(expected, output)
         self.assertIn("0x39", output)
         self.assertIn("0x15", output)
