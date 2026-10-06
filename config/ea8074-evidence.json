@@ -137,9 +137,13 @@
         "sha256": "9deaa92d77985419dc046a54ca847aa4c4e5e61d02a0e7fb05f79f9be2b15e5c",
         "note": "Display stack built in (=y) instead of =m, because the test initramfs carries no modules: DRM_MSM_DPU, DRM_MSM_DSI, DRM_MSM_DSI_10NM_PHY, DRM_PANEL_SAMSUNG_EA8074 and BACKLIGHT_CLASS_DEVICE (that one has no default in the pinned Kconfig and is off in defconfig/sdm670.config, so a =y panel driver would otherwise be silently dropped), plus the DRM_MSM dependency helpers (QCOM_AOSS_QMP=y, QCOM_COMMAND_DB=y, QCOM_LLCC=y, QCOM_OCMEM=n)."
       },
-      "patches/linux/0001-drm-panel-samsung-ea8074.patch": {
-        "sha256": "61bb143394959dc8149da559f4ca160f23e11073accf55c370b12e4394b76875",
-        "note": "Panel driver + binding; Actions run 37406099638 at project commit 2bf35ad failed compiling the earlier patch because a wildcard backlight path prematurely closed a C block comment. The local patch now uses a device-name placeholder, with a matching post-image Git blob hash. git apply --check and application to a temporary copy of the pinned upstream panel Kconfig/Makefile both passed; the applied ea8074_create_backlight function passes an isolated Clang syntax check with stub API declarations, and reintroducing the original wildcard fails that same check. This is not a full kernel compilation or schema/hardware validation; the corrected patch has not been rebuilt in Actions."
+      "patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch": {
+        "sha256": "1af6858219c954dc35de257980854b47cb745702a1feb8bead590e8eff1ed962",
+        "note": "The binding alone, first in the series, because that is the order a mainline DRM submission uses. Split out of the former single combined patch: the split is a partition of the original hunks, the two patches touch disjoint files, and applying both reproduces the original combined patch byte for byte (asserted when the split was made)."
+      },
+      "patches/linux/0002-drm-panel-samsung-ea8074.patch": {
+        "sha256": "411e247d17588cfe2aff11edc788f42ff952323e8fb53412510de556240fb7cf",
+        "note": "Kconfig, Makefile and the driver, second in the series. History: Actions run 37406099638 at project commit 2bf35ad failed compiling the earlier combined patch because a wildcard backlight path prematurely closed a C block comment; the patch now uses a device-name placeholder with a matching post-image Git blob hash. git apply --check and application to a temporary copy of the pinned upstream panel Kconfig/Makefile both passed, and the applied ea8074_create_backlight passes an isolated Clang syntax check with stub API declarations, while reintroducing the original wildcard fails that same check. Later runs then built it for real: 37419562653 and 37426527622 produced boot.img and booted it on the device."
       }
     },
     "rail_mapping_status": "resolved_pending_review",
@@ -950,8 +954,8 @@
   "upstream_readiness": {
     "scope_note": "What is ready to send and what is not, read from the tree rather than from intent. Written after CI run 37432217671 on commit 7e82352.",
     "artefact": {
-      "form": "patches/linux/0001-drm-panel-samsung-ea8074.patch",
-      "shape": "a bare git diff: it begins at 'diff --git' and carries no From:, no Subject: and no commit body, so git apply is enough for CI but it is not a submission.",
+      "form": "two patches in submission order: patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch then patches/linux/0002-drm-panel-samsung-ea8074.patch",
+      "shape": "each is a bare git diff: it begins at 'diff --git' and carries no From:, no Subject: and no commit body, so git apply is enough for CI but neither is a submission. The split into binding-then-driver matches the mainline DRM series order and is a pure partition of the earlier combined patch.",
       "added_lines": {
         "drivers/gpu/drm/panel/panel-samsung-ea8074.c": 671,
         "Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml": 71,
@@ -967,15 +971,15 @@
     "outstanding": [
       {
         "item": "No commit header",
-        "detail": "A submission needs a commit message -- subsystem prefix, panel model, the device it is found in, and the reset waveform and supply order it reproduces -- plus one Signed-off-by per author. Neither exists in the artefact today."
+        "detail": "A submission needs a commit message per patch -- dt-bindings: for the binding, drm/panel: for the driver, naming the panel, the device it is found in, and the reset waveform and supply order the driver reproduces -- plus one Signed-off-by per author on each. Neither patch has either yet."
       },
       {
         "item": "The binding's maintainers entry is a placeholder",
-        "detail": "maintainers: - sirius <sirius@local>. That address is not deliverable, and the same identity is what a Signed-off-by has to carry. It cannot be guessed here; it needs to come from the submitter."
+        "detail": "Now carries the project's GitHub identity, Cocoeasy <Cocoeasy@users.noreply.github.com>. A GitHub noreply address is deliverable through GitHub, but a mainline binding normally wants the author's real name and a signed-off-by they control, so the submitter should confirm this is what they want published or replace it before sending."
       },
       {
-        "item": "Target tree undecided",
-        "detail": "sdm670-mainline/linux is where this board's device tree and SoC support live and is where the patch is applied today, but a generic panel driver and its binding belong in mainline DRM, which has a different review path and a different binding tree. The choice changes the commit message and possibly where the binding file lands."
+        "item": "Target tree decided, patch split not yet done",
+        "detail": "Decided: mainline DRM (dri-devel). The artefact is now split into the series that implies -- dt-bindings first, drm/panel second, both with a drm/panel: or dt-bindings: subject -- but the two files still carry no commit message or Signed-off-by, so they are not sendable yet."
       },
       {
         "item": "MAINTAINERS coverage not checked",

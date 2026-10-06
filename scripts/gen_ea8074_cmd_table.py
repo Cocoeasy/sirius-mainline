@@ -3,7 +3,7 @@
 #
 # Decode the pinned EA8074 on/off command arrays out of the read-only evidence
 # fixture and emit / verify the C init sequences used by
-# patches/linux/0001-drm-panel-samsung-ea8074.patch.
+# patches/linux/0002-drm-panel-samsung-ea8074.patch.
 #
 # This script is deliberately dependency-free and read-only: it parses
 # config/ea8074-evidence.json in memory, verifies the pinned SHA256 digests of
@@ -55,7 +55,7 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURE = os.path.join(REPO_ROOT, "config", "ea8074-evidence.json")
 PATCH = os.path.join(REPO_ROOT, "patches", "linux",
-                     "0001-drm-panel-samsung-ea8074.patch")
+                     "0002-drm-panel-samsung-ea8074.patch")
 
 HEADER_BYTES = 7
 DTYPE_SHORT_WRITE = 0x05

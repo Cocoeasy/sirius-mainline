@@ -117,8 +117,12 @@ jobs:
           grep -q 'sdm710-xiaomi-sirius.dtb' "$MF" || \
             printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$MF"
           cd kernel
-          git apply --verbose ../patches/linux/0001-drm-panel-samsung-ea8074.patch
-          echo "panel patch applied to the pinned tree"
+          # The binding goes in first, the driver that uses it second, matching
+          # the order a series is submitted in. The two touch disjoint files, so
+          # applying both is exactly what the single combined patch did.
+          git apply --verbose ../patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch
+          git apply --verbose ../patches/linux/0002-drm-panel-samsung-ea8074.patch
+          echo "panel binding and driver patches applied to the pinned tree"
           # The command-table comparison against the read-only fixture is a
           # separate, explicit step below (it is deliberately not folded in
           # here, because its result must be recorded even when it fails).
@@ -354,7 +358,8 @@ jobs:
             printf 'kernel source commit   : %s\n' "$KERNEL_COMMIT"
             printf 'panel source commit    : %s\n' "$PANEL_SOURCE_COMMIT"
             printf 'kernel release         : %s\n' "$KR"
-            printf 'panel patch sha256     : %s\n' "$(sha256sum patches/linux/0001-drm-panel-samsung-ea8074.patch | cut -d' ' -f1)"
+            printf 'panel binding sha256   : %s\n' "$(sha256sum patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch | cut -d' ' -f1)"
+            printf 'panel driver sha256    : %s\n' "$(sha256sum patches/linux/0002-drm-panel-samsung-ea8074.patch | cut -d' ' -f1)"
             printf 'sirius.config sha256   : %s\n' "$(sha256sum config/sirius.config | cut -d' ' -f1)"
             printf 'board dts sha256       : %s\n' "$(sha256sum dts/sdm710-xiaomi-sirius.dts | cut -d' ' -f1)"
             printf 'kernel .config sha256  : %s\n' "$(sha256sum kernel/.config | cut -d' ' -f1)"
