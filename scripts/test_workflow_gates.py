@@ -124,13 +124,17 @@ CHECKPATCH_GATE = ROOT / "scripts" / "checkpatch_gate.sh"
 
 
 def checkpatch_summary(errors, warnings, checks, lines=520):
-    """checkpatch's own final line, in the exact shape checkpatch.pl prints."""
+    """The newer checkpatch summary, in the exact shape checkpatch.pl prints."""
     return "total: %d errors, %d warnings, %d checks, %d lines checked\n" % (
         errors,
         warnings,
         checks,
         lines,
     )
+
+
+# Verbatim from the pinned tree's checkpatch: the summary with no checks column.
+OLD_CHECKPATCH_SUMMARY = "total: 0 errors, 0 warnings, 671 lines checked\n"
 
 
 class CheckpatchGateDecisionTest(unittest.TestCase):
@@ -159,6 +163,23 @@ class CheckpatchGateDecisionTest(unittest.TestCase):
         self.assertIn("checkpatch_verdict=pass", p.stdout)
         self.assertIn("checkpatch_errors=0", p.stdout)
         self.assertIn("checkpatch_lines=525", p.stdout)
+
+    def test_summary_without_the_checks_column_still_passes(self):
+        # The pinned tree's checkpatch prints three fields, not four. Accepting
+        # only the newer four-field form reported a clean run as "did not
+        # complete", which is the bug this case pins.
+        p = self.run_gate(OLD_CHECKPATCH_SUMMARY)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("checkpatch_verdict=pass", p.stdout)
+        self.assertIn("checkpatch_errors=0", p.stdout)
+        self.assertIn("checkpatch_lines=671", p.stdout)
+        self.assertIn("checkpatch_checks=n/a", p.stdout)
+
+    def test_old_format_with_an_error_still_fails(self):
+        p = self.run_gate("total: 1 errors, 0 warnings, 671 lines checked\n")
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("checkpatch_verdict=fail", p.stdout)
+        self.assertIn("checkpatch_errors=1", p.stdout)
 
     def test_warnings_and_checks_do_not_fail(self):
         p = self.run_gate(
