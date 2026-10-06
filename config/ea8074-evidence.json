@@ -122,6 +122,10 @@
   "current_worktree": {
     "note": "What the worktree actually contains now, as opposed to the historical snapshot in sources[local_mainline_dts]. Every sha256 is of the file as it exists in this worktree. The dts was edited again after the rail fix, to drop the unused te-gpios property from the panel node, so its sha256 below is the newer one. The earlier blanket statement that none of these files had been compiled or booted is superseded: the patched tree has since been built in CI and the board DTS booted on hardware -- see mainline_hardware_round and the B3 resolution.",
     "files": {
+      "patches/linux/0000-cover-letter.patch": {
+        "sha256": "3fe1d90f9515f8527b886a076408ab1252829fa525bb1ef81ddf447f6b8d854e",
+        "note": "The series cover letter: subject [PATCH 0/2] drm/panel: samsung: add EA8074, the rationale, the build-and-booted status, the packet-type deviation stated as an open risk, and a diffstat generated from git apply --numstat rather than typed. It carries no diff, so the workflow, which applies 0001 and 0002 by name, never touches it. Provenance records this digest."
+      },
       "dts/sdm710-xiaomi-sirius.dts": {
         "sha256": "2cd89d79179f47502d70258e78e854b516dd66f9ede0c5d189afdcf66d0bf2cf",
         "lines": {
@@ -968,7 +972,8 @@
       "checkpatch on the new driver: 0 errors, 0 warnings, 671 lines checked. The pinned tree's checkpatch prints no checks column, so that field is n/a. The line count equals the driver the patch adds, which is what ties the verdict to that file.",
       "No pre-existing EA8074 support and no other Samsung panel driver exist in the pinned tree, so this is a new driver rather than an extension.",
       "The split series applies in order to the pinned tree and the whole build passes on it: run 37433658312 applied 0001 then 0002, built the kernel and dtbs, and reported dtbs_findings=0, checkpatch_verdict=pass and generator_strict_rc=1 with documented_type_diff_records=13, with both patch digests recorded in provenance.",
-      "Adding the submission header did not disturb that: run 37435310073 applied both patches again, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the two new digests, so the sendable files are the ones CI actually built."
+      "Adding the submission header did not disturb that: run 37435310073 applied both patches again, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the two new digests, so the sendable files are the ones CI actually built.",
+      "The cover letter is inert to the build and is tracked anyway: run 37436626482 applied the same two patches, reported dtbs_findings=0 and checkpatch_verdict=pass, and its provenance records the cover letter's digest alongside theirs, so the whole sendable series can be tied to the build."
     ],
     "outstanding": [
       {
