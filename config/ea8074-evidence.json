@@ -905,7 +905,14 @@
         "committed_frames_per_10s": 49,
         "mode_refresh_expected_hz": 60,
         "status": "unresolved",
-        "note": "The mode is a 60 Hz command-mode mode, but the CRTC vblank counter settles at ~29.4 Hz across repeated 10 s samples, while dmesg logs no tear/tearcheck message at all (grep count 0). Committed frames track the DSI interrupt (dsi_isr +49 and total_framecount +49 over the same 10 s). Whether this is a reporting artefact of command mode, a tearcheck/TE effect, or something the 0x15 tear-on form (B2) causes is not established here; it is recorded as an observation, not as a defect and not as an equivalence."
+        "note": "The mode is a 60 Hz command-mode mode, but the CRTC vblank counter settles at ~29.4 Hz across repeated 10 s samples, while dmesg logs no tear/tearcheck message at all (grep count 0). Committed frames track the DSI interrupt (dsi_isr +49 and total_framecount +49 over the same 10 s). Whether this is a reporting artefact of command mode, a tearcheck/TE effect, or something the 0x15 tear-on form (B2) causes is not established here; it is recorded as an observation, not as a defect and not as an equivalence.",
+        "tearcheck_read_only_diagnosis": {
+          "performed": "Read-only diagnosis on the approved mainline round (d87ec275 over COM7, debugfs mounted). No driver change, no reflash.",
+          "te_is_alive": "The TE path is working. /sys/kernel/debug/dri/1/debug/core_irq shows IRQ=[0, 12] with cb dpu_encoder_phys_cmd_te_rd_ptr_irq counting 366474, and IRQ=[0, 26] dpu_encoder_phys_cmd_underrun_irq counting 0. encoder-0/status reads 'intf:1 wb:-1 vsync:366227 underrun:0 frame_done_cnt:0 mode: INTF_MODE_CMD'. The tear-read-pointer interrupt is therefore firing and no underrun has occurred.",
+          "rules_out_the_b2_link": "This rules out the hypothesis that the 0x35 tear-on record being sent as 0x15 (B2) left TE disabled. If tear-on had not taken effect, the tear-read-pointer interrupt would not be arriving like this. So the ~29.4 Hz rate is not 'TE is dead'; TE is up and being serviced.",
+          "what_it_does_not_explain": "It does not explain why the rate is about half the declared 60 Hz. That remains open. Two candidate explanations are recorded without choosing between them: (a) a command-mode reporting artefact, since vsync and vblank both read ~29.4 Hz; or (b) a real half-rate tearcheck, since dpu_encoder_phys_cmd_tearcheck_config() reads the declared refresh (60) but has no real measured TE rate available to divide by the INTF frame divisor, so its programmed period may not match the panel's actual TE rate. Confirming which would need the DPU tearcheck/INTF register values, which the pinned tree exposes only through the driver, not through debugfs.",
+          "frame_integrity": "No tearing and no stall are evident: crtc-0/crc/data advances its frame counter by one per entry (0x00059167, 0x00059168, 0x00059169) with an unchanging CRC value 0x45db0433, and dmesg carries no tear/timeout/underrun/vsync message at all."
+        }
       },
       "gpio": {
         "source": "/sys/kernel/debug/gpio, after mounting debugfs",
