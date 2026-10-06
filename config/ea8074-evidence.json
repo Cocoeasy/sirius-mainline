@@ -946,5 +946,41 @@
       "confirmation": "The user looked at the device after fb0/blank was set to 0 and the backlight to 512, and confirmed the screen is lit and shows content.",
       "evidence_level": "operational, with the same ceiling as the first round: a lit panel is a user-reported visual observation. It does not make the 0x15 packet form equivalent to the vendor 0x39 form, and it does not explain the ~29.4 Hz vblank rate; both stay as recorded above."
     }
+  },
+  "upstream_readiness": {
+    "scope_note": "What is ready to send and what is not, read from the tree rather than from intent. Written after CI run 37432217671 on commit 7e82352.",
+    "artefact": {
+      "form": "patches/linux/0001-drm-panel-samsung-ea8074.patch",
+      "shape": "a bare git diff: it begins at 'diff --git' and carries no From:, no Subject: and no commit body, so git apply is enough for CI but it is not a submission.",
+      "added_lines": {
+        "drivers/gpu/drm/panel/panel-samsung-ea8074.c": 671,
+        "Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml": 71,
+        "drivers/gpu/drm/panel/Kconfig": 10,
+        "drivers/gpu/drm/panel/Makefile": 1
+      }
+    },
+    "already_verified": [
+      "dt_binding_check=pass, dtbs_check=pass, dtbs_findings=0 for the panel binding and the board DTB (run 37432217671) -- the binding compiles as a schema, its example passes, and the built DTB satisfies it.",
+      "checkpatch on the new driver: 0 errors, 0 warnings, 671 lines checked. The pinned tree's checkpatch prints no checks column, so that field is n/a. The line count equals the driver the patch adds, which is what ties the verdict to that file.",
+      "No pre-existing EA8074 support and no other Samsung panel driver exist in the pinned tree, so this is a new driver rather than an extension."
+    ],
+    "outstanding": [
+      {
+        "item": "No commit header",
+        "detail": "A submission needs a commit message -- subsystem prefix, panel model, the device it is found in, and the reset waveform and supply order it reproduces -- plus one Signed-off-by per author. Neither exists in the artefact today."
+      },
+      {
+        "item": "The binding's maintainers entry is a placeholder",
+        "detail": "maintainers: - sirius <sirius@local>. That address is not deliverable, and the same identity is what a Signed-off-by has to carry. It cannot be guessed here; it needs to come from the submitter."
+      },
+      {
+        "item": "Target tree undecided",
+        "detail": "sdm670-mainline/linux is where this board's device tree and SoC support live and is where the patch is applied today, but a generic panel driver and its binding belong in mainline DRM, which has a different review path and a different binding tree. The choice changes the commit message and possibly where the binding file lands."
+      },
+      {
+        "item": "MAINTAINERS coverage not checked",
+        "detail": "Not verifiable from this worktree: CI fetches the pinned tree and only drivers/ and Documentation/ are kept locally, and MAINTAINERS is in neither. To be confirmed against the target tree before sending."
+      }
+    ]
   }
 }
