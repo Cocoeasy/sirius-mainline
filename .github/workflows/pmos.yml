@@ -52,7 +52,7 @@ jobs:
         run: |
           WORK="$HOME/.local/var/pmbootstrap"
           mkdir -p "$HOME/.config" "$WORK"
-          printf '[pmbootstrap]\naports = %s\ndevice = xiaomi-sirius\nui = none\nuser = user\nwork = %s\n' \
+          printf '[pmbootstrap]\naports = %s\ndevice = xiaomi-sirius\nui = phosh\nuser = user\nwork = %s\n' \
             "$PWD/pmaports-upstream" "$WORK" > "$HOME/.config/pmbootstrap_v3.cfg"
           echo 8 > "$WORK/version"
           echo 8 > "$WORK/.version"
