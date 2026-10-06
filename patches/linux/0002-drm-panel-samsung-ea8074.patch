@@ -1,3 +1,27 @@
+From: Cocoeasy <Cocoeasy@users.noreply.github.com>
+
+drm/panel: samsung: add EA8074
+
+Add a driver for the Samsung EA8074 command mode AMOLED panel (1080x2244)
+found in the Xiaomi Mi 8 SE.
+
+The mode, lane count, reset waveform, supply order and delays, on/off
+command arrays and brightness encoding come from the panel's vendor device
+tree and driver at
+SDM710-Development/android_kernel_xiaomi_sdm710@06a01bad; the API usage
+follows panel-samsung-ams639rq08.c, a command mode AMOLED panel on the same
+DSI host.
+
+One deviation is deliberate and is called out in the driver rather than
+hidden: 13 vendor records use DCS long write (0x39) with a two-byte payload,
+and the exported helper derives the data type from the buffer length, so
+those go out as 0x15 short-write-with-parameter with the same command and
+parameter. Whether the panel accepts 0x15 there is not verified. Closing it
+needs either hardware confirmation or a typed-DCS helper in the DRM core,
+which is a separate change and is not part of this patch.
+
+Signed-off-by: Cocoeasy <Cocoeasy@users.noreply.github.com>
+---
 diff --git a/drivers/gpu/drm/panel/Kconfig b/drivers/gpu/drm/panel/Kconfig
 index e159cc021002f1415a0d1601785afd5abf3d4380..066a58517390f50f69330a197de9f5f625894924 100644
 --- a/drivers/gpu/drm/panel/Kconfig

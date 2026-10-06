@@ -1,3 +1,17 @@
+From: Cocoeasy <Cocoeasy@users.noreply.github.com>
+
+dt-bindings: display: panel: add Samsung EA8074
+
+Document the Samsung EA8074, a 5.88 inch 1080x2244 MIPI-DSI command mode
+AMOLED panel with a 10-bit DCS brightness control, as found in the Xiaomi
+Mi 8 SE (xiaomi-sirius, SDM710).
+
+The panel takes a 1.8 V I/O rail, a 3.0 V source rail and a single
+active-low reset line. The reset waveform itself is the driver's business
+and is deliberately not described here.
+
+Signed-off-by: Cocoeasy <Cocoeasy@users.noreply.github.com>
+---
 diff --git a/Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml b/Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml
 new file mode 100644
 index 0000000000000000000000000000000000000000..1c73b0840b451ee7c698dcc5467211f7ccf9133f

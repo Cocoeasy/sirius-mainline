@@ -138,12 +138,12 @@
         "note": "Display stack built in (=y) instead of =m, because the test initramfs carries no modules: DRM_MSM_DPU, DRM_MSM_DSI, DRM_MSM_DSI_10NM_PHY, DRM_PANEL_SAMSUNG_EA8074 and BACKLIGHT_CLASS_DEVICE (that one has no default in the pinned Kconfig and is off in defconfig/sdm670.config, so a =y panel driver would otherwise be silently dropped), plus the DRM_MSM dependency helpers (QCOM_AOSS_QMP=y, QCOM_COMMAND_DB=y, QCOM_LLCC=y, QCOM_OCMEM=n)."
       },
       "patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch": {
-        "sha256": "1af6858219c954dc35de257980854b47cb745702a1feb8bead590e8eff1ed962",
-        "note": "The binding alone, first in the series, because that is the order a mainline DRM submission uses. Split out of the former single combined patch: the split is a partition of the original hunks, the two patches touch disjoint files, and applying both reproduces the original combined patch byte for byte (asserted when the split was made)."
+        "sha256": "582dee807d1aebe0c35af7d20aeed7ebb87164a6c06e2ca4a8b158775185731c",
+        "note": "The binding alone, first in the series, because that is the order a mainline DRM submission uses. Split out of the former single combined patch: the split is a partition of the original hunks, the two patches touch disjoint files, and applying both reproduces the original combined patch byte for byte (asserted when the split was made). Now carries a submission header -- From, a dt-bindings: subject, a body and a Signed-off-by for Cocoeasy <Cocoeasy@users.noreply.github.com> -- added with the submitter's explicit authorisation. git apply --stat still parses the diff body, so the header did not disturb the patch."
       },
       "patches/linux/0002-drm-panel-samsung-ea8074.patch": {
-        "sha256": "411e247d17588cfe2aff11edc788f42ff952323e8fb53412510de556240fb7cf",
-        "note": "Kconfig, Makefile and the driver, second in the series. History: Actions run 37406099638 at project commit 2bf35ad failed compiling the earlier combined patch because a wildcard backlight path prematurely closed a C block comment; the patch now uses a device-name placeholder with a matching post-image Git blob hash. git apply --check and application to a temporary copy of the pinned upstream panel Kconfig/Makefile both passed, and the applied ea8074_create_backlight passes an isolated Clang syntax check with stub API declarations, while reintroducing the original wildcard fails that same check. Later runs then built it for real: 37419562653 and 37426527622 produced boot.img and booted it on the device."
+        "sha256": "e6080d1ffdbc232e763c10c392ca8a32efc66920b141d4af3f14f69f068ca2dd",
+        "note": "Kconfig, Makefile and the driver, second in the series, now with a drm/panel: subject, a body and the same Signed-off-by. History: Actions run 37406099638 at project commit 2bf35ad failed compiling the earlier combined patch because a wildcard backlight path prematurely closed a C block comment; the patch now uses a device-name placeholder with a matching post-image Git blob hash. Later runs built it for real: 37419562653 and 37426527622 produced boot.img and booted it on the device, and 37433658312 applied this split series and passed every gate."
       }
     },
     "rail_mapping_status": "resolved_pending_review",
@@ -955,7 +955,7 @@
     "scope_note": "What is ready to send and what is not, read from the tree rather than from intent. Written after CI run 37432217671 on commit 7e82352.",
     "artefact": {
       "form": "two patches in submission order: patches/linux/0001-dt-bindings-display-panel-samsung-ea8074.patch then patches/linux/0002-drm-panel-samsung-ea8074.patch",
-      "shape": "each is a bare git diff: it begins at 'diff --git' and carries no From:, no Subject: and no commit body, so git apply is enough for CI but neither is a submission. The split into binding-then-driver matches the mainline DRM series order and is a pure partition of the earlier combined patch.",
+      "shape": "each carries a submission header -- From, subject with the subsystem prefix, body and Signed-off-by -- followed by the diff body. git apply still applies them, so CI is unaffected; the header is what makes them sendable rather than merely applicable.",
       "added_lines": {
         "drivers/gpu/drm/panel/panel-samsung-ea8074.c": 671,
         "Documentation/devicetree/bindings/display/panel/samsung,ea8074.yaml": 71,
@@ -972,15 +972,15 @@
     "outstanding": [
       {
         "item": "No commit header",
-        "detail": "A submission needs a commit message per patch -- dt-bindings: for the binding, drm/panel: for the driver, naming the panel, the device it is found in, and the reset waveform and supply order the driver reproduces -- plus one Signed-off-by per author on each. Neither patch has either yet. Drafts for both are recorded below."
+        "detail": "Both patches now carry a From, a subject with the right subsystem prefix, a body and a Signed-off-by for Cocoeasy <Cocoeasy@users.noreply.github.com>, written in after the submitter authorised the sign-off. The body of 0002 states the 0x39-to-0x15 deviation as an open risk rather than an equivalence. git apply --stat still parses both diff bodies."
       },
       {
-        "item": "Signed-off-by needs the submitter's authorisation",
-        "detail": "This is the one thing that cannot be completed on the submitter's behalf. A Signed-off-by is a Developer Certificate of Origin assertion made by the person signing, so it is written only once the submitter says to. Until then the patches stay unsigned and the drafts below stay drafts."
+        "item": "Signed-off-by inserted with the submitter's authorisation",
+        "detail": "The submitter explicitly authorised the sign-off, so Signed-off-by: Cocoeasy <Cocoeasy@users.noreply.github.com> is now in both patches. This is their DCO assertion; it was not inserted on a guess."
       },
       {
-        "item": "Binding identity to confirm",
-        "detail": "The binding's maintainers entry is now the project's GitHub identity, Cocoeasy <Cocoeasy@users.noreply.github.com>. A GitHub noreply address is deliverable through GitHub, but a mainline binding usually wants the author's real name and an address they control, and reviewers do ask. The submitter should confirm this is what they want published or give a replacement before the series goes out."
+        "item": "Binding identity confirmed",
+        "detail": "The binding's maintainers entry is Cocoeasy <Cocoeasy@users.noreply.github.com>, and the submitter confirmed that this GitHub identity is what they want published and used for the sign-off. It is deliverable through GitHub; if a reviewer asks for a real name, that is a reply, not a blocker."
       },
       {
         "item": "Target tree decided, patch split not yet done",
@@ -991,8 +991,8 @@
         "detail": "Checked against mainline's MAINTAINERS file. There is no EA8074 entry and no catch-all for drivers/gpu/drm/panel/, so the driver is covered by DRM DRIVERS (Airlie, Vetter) and DRM DRIVERS AND MISC GPU PATCHES (Lankhorst, Ripard, Zimmermann, list dri-devel@lists.freedesktop.org, tree drm-misc); the binding is covered by those two plus OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS (Rob Herring, Krzysztof Kozlowski, Conor Dooley, list devicetree@vger.kernel.org). So both patches go to dri-devel, and the binding is additionally copied to devicetree. Individual panel entries in that file are per-panel rather than a pattern, so adding one is a follow-up, not a requirement for the first submission."
       },
       {
-        "item": "Commit messages drafted, not inserted",
-        "detail": "Drafts exist, both with a subsystem prefix, the panel, the device and what the driver reproduces. They are recorded here rather than written into the patch files: neither patch may be signed off until the submitter authorises a Signed-off-by, because that is their DCO assertion and not something that can be filled in on their behalf. The drafts also state the packet-type deviation as an open risk rather than as an equivalence, matching blocker B2."
+        "item": "Commit messages inserted",
+        "detail": "Both subjects, bodies and sign-offs are now in the patch files themselves, with the submitter's authorisation for the sign-off. The drafts below are kept as the record of what was agreed before insertion; the patches are now the source of truth."
       }
     ],
     "commit_message_drafts": {
