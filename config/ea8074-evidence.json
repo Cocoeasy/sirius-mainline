@@ -937,6 +937,8 @@
         "disp_cc_mdss_pclk0_clk": 165353992,
         "tlmm_state": "gpio5 out high, gpio10 func1, gpio75 out high, gpio76 in low -- unchanged from the first round",
         "backlight": "fb0/blank written 0 and brightness written 512; actual_brightness reads back 512",
+        "crtc_status": "crtc-0 reports crtc:67 1080x2244, mixer:0 ctl:2, plane:37 stage:1, fb:68 format XR24 1080x2244, sspp[0]:sspp_8 -- the frame buffer is bound and being scanned out.",
+        "vblank": "Re-sampled with the first round's command (grep fps /sys/kernel/debug/dri/1/crtc-0/status and grep dsi_isr /proc/interrupts, 10 s apart): count 293 over total 9951 ms, fps:29, total_framecount 1635 -> 1684, dsi_isr 1658 -> 1707. So the ~29.4 Hz rate and the frame-to-interrupt coupling reproduce exactly after the te-gpios removal, which neither caused nor changed them; grep -ci tear over dmesg is still 0.",
         "dmesg": "dsi_pll_10nm_vco_prepare still prints 'DSI PLL(0) lock failed, status=0x00000000' at 0.948 s, before the DPU binds at 1.435 s; the PLL is locked by then, as dsi0vco_clk running at 1984247900 Hz shows. Identical to the first round, and still an ordering artefact rather than a failure."
       },
       "te_gpios_check_note": "find /proc/device-tree -name 'te-gpios' returning 0 is what ties this round to the W1 change: the property is absent from the DTB the board is booted with, not merely from the source file. The panel still enumerates as samsung,ea8074 in that same live tree, so nothing else in the panel node was disturbed.",
