@@ -826,7 +826,7 @@
   },
   "mainline_hardware_round": {
     "status": "performed",
-    "scope": "The approved round that closed B3: the CI boot image was flashed to the authorized device only, booted, and the panel was driven on real hardware. It is recorded separately from the earlier recovery round above, whose read_only_only statement still holds for that round.",
+    "scope": "The approved hardware rounds: a CI boot image was flashed to the authorized device only, booted, and the panel was driven on real hardware. Two rounds are recorded -- the first closed B3 and B4, and the second re-flashed the rebuild that carries the te-gpios removal so that the acceptance is not credited to an artefact predating that change. Both are recorded separately from the earlier recovery round above, whose read_only_only statement still holds for that round.",
     "device": {
       "serial": "d87ec275",
       "product": "sirius",
@@ -913,6 +913,36 @@
         "confirmation": "The user looked at the device and confirmed the screen is lit and shows content.",
         "evidence_level": "operational: a panel seen working, which is not by itself the vendor-comparable trace that B2 asks for."
       }
+    },
+    "reflash_round": {
+      "why": "Removing te-gpios from the board DTS changed the compiled DTB, so the artefact of run 37419562653 no longer matched the worktree. The fixed tree was rebuilt and the new boot image re-flashed to the same device, so that the acceptance above is not credited to an image that predates the change.",
+      "ci_run": "37426527622",
+      "workflow_commit": "019c5ed",
+      "kernel_commit": "75d5a9875202673b11a8eac05e6f489ba0c87a05",
+      "kernel_release": "7.1.3-sirius-g75d5a9875202-dirty",
+      "boot_img_size": 15978496,
+      "boot_img_sha256": "9dd18c554dda34f14e644fbb806a9eed5c401c0b3b13f816875bbab7a52d965c",
+      "manifest": "sha256sum -c verified every entry of the run's manifest: 10 digests in the sirius-boot artefact and the 2 log digests that live in the sirius-logs artefact, 12/12 matching.",
+      "schema_gate": "dt_binding_check=pass, dtbs_check=pass, dtbs_findings=0, and a grep for te-gpios across the CI logs returns 0 hits -- the finding that run 37419562653 reported as a pass is gone from both the log and the verdict.",
+      "target_check": "fastboot -s d87ec275 getvar returned product: sirius, serialno: d87ec275, unlocked: yes. Addressed by serial, so no other device on the bus could have been written even if one were present.",
+      "operation_performed": "fastboot -s d87ec275 flash boot <boot.img> (Sending OKAY, Writing OKAY) followed by fastboot -s d87ec275 reboot. The boot partition was the only partition written; nothing was erased and no userdata was touched.",
+      "post_flash_readbacks": {
+        "kernel_build_time": "Tue Oct 6 06:57:53 UTC 2026 -- distinct from the 05:53:46 of the 37419562653 artefact, so the running image is this one",
+        "cmdline_serialno": "d87ec275, with msm_drm.dsi_display0=dsi_ss_ea8074_fhd_cmd_display:config2 unchanged",
+        "live_dt_te_gpios_count": 0,
+        "live_dt_model": "Xiaomi Mi 8 SE (xiaomi-sirius)",
+        "live_dt_panel_compatible": "samsung,ea8074",
+        "drm_connector": "card1-DSI-1 connected, 1080x2244, dpms On",
+        "dsi0vco_clk": 1984247900,
+        "disp_cc_mdss_pclk0_clk": 165353992,
+        "tlmm_state": "gpio5 out high, gpio10 func1, gpio75 out high, gpio76 in low -- unchanged from the first round",
+        "backlight": "fb0/blank written 0 and brightness written 512; actual_brightness reads back 512",
+        "dmesg": "dsi_pll_10nm_vco_prepare still prints 'DSI PLL(0) lock failed, status=0x00000000' at 0.948 s, before the DPU binds at 1.435 s; the PLL is locked by then, as dsi0vco_clk running at 1984247900 Hz shows. Identical to the first round, and still an ordering artefact rather than a failure."
+      },
+      "te_gpios_check_note": "find /proc/device-tree -name 'te-gpios' returning 0 is what ties this round to the W1 change: the property is absent from the DTB the board is booted with, not merely from the source file. The panel still enumerates as samsung,ea8074 in that same live tree, so nothing else in the panel node was disturbed.",
+      "panel_observed_lit": true,
+      "confirmation": "The user looked at the device after fb0/blank was set to 0 and the backlight to 512, and confirmed the screen is lit and shows content.",
+      "evidence_level": "operational, with the same ceiling as the first round: a lit panel is a user-reported visual observation. It does not make the 0x15 packet form equivalent to the vendor 0x39 form, and it does not explain the ~29.4 Hz vblank rate; both stay as recorded above."
     }
   }
 }
