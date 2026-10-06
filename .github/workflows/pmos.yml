@@ -17,13 +17,17 @@ jobs:
             python3 python3-pip python3-venv git curl ca-certificates \
             btrfs-progs dosfstools e2fsprogs device-tree-compiler
 
-      - name: Restore built-package cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/var/pmbootstrap/packages
-          key: pmbpkg-${{ hashFiles('pmaports/linux-postmarketos-qcom-sdm710/APKBUILD', 'pmaports/linux-postmarketos-qcom-sdm710/sdm710-xiaomi-sirius.dts') }}
-          restore-keys: |
-            pmbpkg-
+      # NOTE: the built-package cache that used to sit here was removed on
+      # purpose. It cached ~/.local/var/pmbootstrap/packages -- which contains
+      # the APKINDEX -- but not the signing key pmbootstrap generates per
+      # environment, so a cache restored into a fresh runner carried an index
+      # signed by a key that no longer existed. apk then reported "UNTRUSTED
+      # signature", ignored the local repository, and failed with
+      # "device-xiaomi-sirius (no such package)" -- while pmbootstrap had
+      # skipped both package builds as "up to date", so nothing re-signed the
+      # index. That is exactly what failed run 37461846162. Without the cache
+      # every run builds and signs its own packages, which is slower but
+      # correct.
 
       - name: Install pmbootstrap from source
         run: |
