@@ -1,0 +1,14 @@
+[Unit]
+Description=EA8074 panel backlight bring-up
+# The panel/msm DRM driver registers the backlight; make sure the device tree
+# and DRM have had a chance to probe before we try to write it.
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ea8074-backlight
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=pmOS USB gadget (ACM serial + NCM network)
+After=sys-kernel-config.mount
+Wants=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/pmos-usb-gadget
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

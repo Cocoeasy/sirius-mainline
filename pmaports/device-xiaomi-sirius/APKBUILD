@@ -19,6 +19,10 @@ makedepends="devicepkg-dev"
 source="
 	deviceinfo
 	modules-initfs
+	ea8074-backlight.sh
+	ea8074-backlight.service
+	pmos-usb-gadget.sh
+	pmos-usb-gadget.service
 "
 
 build() {
@@ -27,8 +31,36 @@ build() {
 
 package() {
 	devicepkg_package $startdir $pkgname
+
+	# --- EA8074 panel backlight bring-up -----------------------------------
+	# The panel driver registers the backlight at brightness 0 (the pinned
+	# vendor on-sequence writes 0x51 00 00), so the panel stays dark until
+	# userspace sets a level. Bring it up at boot from userspace; this keeps
+	# the fix out of the kernel and out of the initramfs.
+	install -Dm755 "$srcdir"/ea8074-backlight.sh \
+		"$pkgdir"/usr/bin/ea8074-backlight
+	install -Dm644 "$srcdir"/ea8074-backlight.service \
+		"$pkgdir"/usr/lib/systemd/system/ea8074-backlight.service
+	install -d "$pkgdir"/usr/lib/systemd/system/multi-user.target.wants
+	ln -s ../ea8074-backlight.service \
+		"$pkgdir"/usr/lib/systemd/system/multi-user.target.wants/ea8074-backlight.service
+
+	# --- USB gadget (ACM serial + NCM network) -----------------------------
+	# Give the host a COM port and a network interface to the device, so it
+	# can be reached without a special bring-up image.
+	install -Dm755 "$srcdir"/pmos-usb-gadget.sh \
+		"$pkgdir"/usr/bin/pmos-usb-gadget
+	install -Dm644 "$srcdir"/pmos-usb-gadget.service \
+		"$pkgdir"/usr/lib/systemd/system/pmos-usb-gadget.service
+	install -d "$pkgdir"/usr/lib/systemd/system/multi-user.target.wants
+	ln -s ../pmos-usb-gadget.service \
+		"$pkgdir"/usr/lib/systemd/system/multi-user.target.wants/pmos-usb-gadget.service
 }
 sha512sums="
 e6e47f8d58e6231027e76c6e922f5f9512dda574f720f32b4db707bc95fa22093c5f7b86a779bdea7877123679beed3fbfacc6a66d629f9012c4b7d3a434bb94  deviceinfo
 831b7227fcd26821c1ad6dfb7b08c87bc37794ff72883dde304ce39b2fc065a5195ba0d4569b09f20b9bf63baeb863ce4cb3ca8e92e16325bb6d62ca67e37098  modules-initfs
+bfbf0507a275fdd55080b7ee3e4ab9f2bec945852ed4d34b3e21adc2d99537b41c1045e77954262e37be1e9343f33a57df45e3c6c4b707c705dc5e65935e718d  ea8074-backlight.sh
+4c88956dbce0d1074494c9409730c6a523e92803edf40571c831ebf9f7688a954b81a3658fad98c0a1efac637781583df609e288e92a4abf537ed52bc87f44e8  ea8074-backlight.service
+ad3d8f43e7b611953a506e3df674ffa446ffabc614838ba34c36cb8e66f5a5b04f66616d3213c8dcf4a7acd80f0e5b275db1117e698a2e019273c68c3851f08a  pmos-usb-gadget.sh
+440e0ada93720ca035bac4b5a9871e144f5511a4c60c69acbaed76c28510d0ec81622cc1b85bc89e8e3b9529849f2fbe148a3317a4c617f073620e226ec389a2  pmos-usb-gadget.service
 "
