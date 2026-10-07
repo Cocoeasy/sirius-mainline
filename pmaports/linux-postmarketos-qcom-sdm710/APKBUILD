@@ -56,9 +56,17 @@ prepare() {
 	# The panel resolves to =m rather than =y because DRM itself is =m here, so
 	# the assertion below accepts either; the module is loaded early via the
 	# device package's modules-initfs.
+	# The USB gadget needs the extcon driver that the board DTS references
+	# (&usb_1_dwc3 { extcon = <&extcon_usb>; }, where extcon_usb is
+	# "linux,extcon-usb-gpio"). Neither defconfig nor sdm670.config sets
+	# CONFIG_EXTCON_GPIO, so without forcing it on, extcon_usb never probes and
+	# the dwc3 controller defers forever ("deferred probe pending: dwc3: failed
+	# to initialize core") -- which leaves /sys/class/udc empty and no USB
+	# gadget. Force it in.
 	printf '%s\n' \
 		'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
-		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' > "$srcdir"/ea8074.config
+		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' \
+		'CONFIG_EXTCON_GPIO=y' > "$srcdir"/ea8074.config
 	scripts/kconfig/merge_config.sh -m .config "$srcdir"/ea8074.config
 
 	make ARCH="$_carch" olddefconfig
@@ -72,6 +80,13 @@ prepare() {
 	}
 	grep -qE '^CONFIG_BACKLIGHT_CLASS_DEVICE=[ym]$' .config || {
 		echo "FATAL: CONFIG_BACKLIGHT_CLASS_DEVICE is not enabled in .config" >&2
+		exit 1
+	}
+	# Same reasoning as the panel driver: without this the USB gadget cannot
+	# come up at all (see above).
+	grep -qE '^CONFIG_EXTCON_GPIO=[ym]$' .config || {
+		echo "FATAL: CONFIG_EXTCON_GPIO is not enabled in .config" >&2
+		grep -E 'CONFIG_EXTCON' .config >&2 || true
 		exit 1
 	}
 }
