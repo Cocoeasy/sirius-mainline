@@ -56,19 +56,16 @@ prepare() {
 	# The panel resolves to =m rather than =y because DRM itself is =m here, so
 	# the assertion below accepts either; the module is loaded early via the
 	# device package's modules-initfs.
-	# USB: the SDM670/710 mainline USB is only "partial" -- automatic
-	# role/mode switching does not work, and the controller must be forced
-	# into gadget mode manually via debugfs:
-	#     echo device > /sys/kernel/debug/usb/a600000.usb/mode
-	# That node only exists when the dwc3 debugfs support is built in, so
-	# enable CONFIG_USB_DWC3_DEBUG (and the gadget debugfs) to make it
-	# available. (The extcon driver the DTS references, extcon-usb-gpio, is
-	# CONFIG_EXTCON_USB_GPIO and is already =y -- it is NOT CONFIG_EXTCON_GPIO.)
+	#
+	# CONFIG_PHY_QCOM_QUSB2 is the USB2 (high-speed) PHY paired with the dwc3
+	# controller. It is NOT set by defconfig or sdm670.config, so the PHY node
+	# in the DTS (phy@88e2000) gets no driver at all: /sys/class/phy stays
+	# empty, dwc3 then fails with "failed to initialize core" and no UDC
+	# appears -- i.e. no USB gadget. Force it on.
 	printf '%s\n' \
 		'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
 		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' \
-		'CONFIG_USB_DWC3_DEBUG=y' \
-		'CONFIG_USB_GADGET_DEBUG_FS=y' > "$srcdir"/ea8074.config
+		'CONFIG_PHY_QCOM_QUSB2=y' > "$srcdir"/ea8074.config
 	scripts/kconfig/merge_config.sh -m .config "$srcdir"/ea8074.config
 
 	make ARCH="$_carch" olddefconfig
@@ -84,11 +81,11 @@ prepare() {
 		echo "FATAL: CONFIG_BACKLIGHT_CLASS_DEVICE is not enabled in .config" >&2
 		exit 1
 	}
-	# The dwc3 debugfs mode node is how the USB gadget gets brought up on
-	# this SoC (see above); without it there is no way to force gadget mode.
-	grep -qE '^CONFIG_USB_DWC3_DEBUG=[ym]$' .config || {
-		echo "FATAL: CONFIG_USB_DWC3_DEBUG is not enabled in .config" >&2
-		grep -E 'CONFIG_USB_DWC3|CONFIG_USB_GADGET_DEBUG' .config >&2 || true
+	# Without the USB2 PHY driver the dwc3 controller cannot come up and there
+	# is no USB gadget (see above).
+	grep -qE '^CONFIG_PHY_QCOM_QUSB2=[ym]$' .config || {
+		echo "FATAL: CONFIG_PHY_QCOM_QUSB2 is not enabled in .config" >&2
+		grep -E 'CONFIG_PHY_QCOM' .config >&2 || true
 		exit 1
 	}
 }
