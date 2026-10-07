@@ -56,17 +56,19 @@ prepare() {
 	# The panel resolves to =m rather than =y because DRM itself is =m here, so
 	# the assertion below accepts either; the module is loaded early via the
 	# device package's modules-initfs.
-	# The USB gadget needs the extcon driver that the board DTS references
-	# (&usb_1_dwc3 { extcon = <&extcon_usb>; }, where extcon_usb is
-	# "linux,extcon-usb-gpio"). Neither defconfig nor sdm670.config sets
-	# CONFIG_EXTCON_GPIO, so without forcing it on, extcon_usb never probes and
-	# the dwc3 controller defers forever ("deferred probe pending: dwc3: failed
-	# to initialize core") -- which leaves /sys/class/udc empty and no USB
-	# gadget. Force it in.
+	# USB: the SDM670/710 mainline USB is only "partial" -- automatic
+	# role/mode switching does not work, and the controller must be forced
+	# into gadget mode manually via debugfs:
+	#     echo device > /sys/kernel/debug/usb/a600000.usb/mode
+	# That node only exists when the dwc3 debugfs support is built in, so
+	# enable CONFIG_USB_DWC3_DEBUG (and the gadget debugfs) to make it
+	# available. (The extcon driver the DTS references, extcon-usb-gpio, is
+	# CONFIG_EXTCON_USB_GPIO and is already =y -- it is NOT CONFIG_EXTCON_GPIO.)
 	printf '%s\n' \
 		'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
 		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' \
-		'CONFIG_EXTCON_GPIO=y' > "$srcdir"/ea8074.config
+		'CONFIG_USB_DWC3_DEBUG=y' \
+		'CONFIG_USB_GADGET_DEBUG_FS=y' > "$srcdir"/ea8074.config
 	scripts/kconfig/merge_config.sh -m .config "$srcdir"/ea8074.config
 
 	make ARCH="$_carch" olddefconfig
@@ -82,11 +84,11 @@ prepare() {
 		echo "FATAL: CONFIG_BACKLIGHT_CLASS_DEVICE is not enabled in .config" >&2
 		exit 1
 	}
-	# Same reasoning as the panel driver: without this the USB gadget cannot
-	# come up at all (see above).
-	grep -qE '^CONFIG_EXTCON_GPIO=[ym]$' .config || {
-		echo "FATAL: CONFIG_EXTCON_GPIO is not enabled in .config" >&2
-		grep -E 'CONFIG_EXTCON' .config >&2 || true
+	# The dwc3 debugfs mode node is how the USB gadget gets brought up on
+	# this SoC (see above); without it there is no way to force gadget mode.
+	grep -qE '^CONFIG_USB_DWC3_DEBUG=[ym]$' .config || {
+		echo "FATAL: CONFIG_USB_DWC3_DEBUG is not enabled in .config" >&2
+		grep -E 'CONFIG_USB_DWC3|CONFIG_USB_GADGET_DEBUG' .config >&2 || true
 		exit 1
 	}
 }

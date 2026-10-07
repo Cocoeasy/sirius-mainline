@@ -12,6 +12,20 @@ G=/sys/kernel/config/usb_gadget/g1
 
 modprobe libcomposite 2>/dev/null
 mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config 2>/dev/null
+mountpoint -q /sys/kernel/debug || mount -t debugfs none /sys/kernel/debug 2>/dev/null
+
+# On SDM670/710 mainline the USB role/mode does not switch automatically; the
+# controller has to be forced into gadget mode by hand (see the pmOS SDM710
+# wiki). Do that before creating the gadget, so a UDC appears.
+i=0
+while [ ! -e /sys/kernel/debug/usb/a600000.usb/mode ] && [ "$i" -lt 30 ]; do
+	sleep 1
+	i=$((i + 1))
+done
+if [ -e /sys/kernel/debug/usb/a600000.usb/mode ]; then
+	echo device > /sys/kernel/debug/usb/a600000.usb/mode 2>/dev/null
+fi
+
 [ -d /sys/kernel/config/usb_gadget ] || exit 0
 
 if [ ! -e "$G/idVendor" ]; then
