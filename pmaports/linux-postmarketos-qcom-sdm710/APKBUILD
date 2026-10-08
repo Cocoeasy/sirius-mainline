@@ -70,6 +70,18 @@ prepare() {
 	# in the DTS (phy@88e2000) gets no driver at all: /sys/class/phy stays
 	# empty, dwc3 then fails with "failed to initialize core" and no UDC
 	# appears -- i.e. no USB gadget. Force it on.
+	#
+	# Deliberately NOT set here: CONFIG_DRM_SIMPLEDRM / CONFIG_DRM_FBDEV_EMULATION
+	# / CONFIG_FRAMEBUFFER_CONSOLE. config/sirius.config turns them on because the
+	# bring-up boot.img has no UART and the panel is its only console -- but in a
+	# phosh image they take the display away from the compositor:
+	#   * simpledrm registers a second DRM card (card1 "Unknown-1", 285x593mm)
+	#     next to msm's card0-DSI-1;
+	#   * fbdev emulation creates fb0 on the msm CRTC.
+	# phoc then cannot commit: "connector DSI-1: Atomic commit failed: Resource
+	# busy", and with two cards the greeter dies with "Error 71 (Protocol error)
+	# dispatching to Wayland display" -> greetd start-limit-hit -> no UI.
+	# Verified on the device: unbinding simple-framebuffer clears Error 71.
 	printf '%s\n' \
 		'CONFIG_BACKLIGHT_CLASS_DEVICE=y' \
 		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' \
@@ -113,12 +125,7 @@ prepare() {
 		'CONFIG_QCOM_RMTFS_MEM=y' \
 		'CONFIG_SERIAL_QCOM_GENI=y' \
 		'CONFIG_SERIAL_QCOM_GENI_CONSOLE=y' \
-		'CONFIG_DRM_SIMPLEDRM=y' \
-		'CONFIG_DRM_FBDEV_EMULATION=y' \
-		'CONFIG_FRAMEBUFFER_CONSOLE=y' \
-		'CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y' \
 		'CONFIG_VT=y' \
-		'CONFIG_VT_CONSOLE=y' \
 		'CONFIG_LOGO=n' \
 		'CONFIG_PSTORE=y' \
 		'CONFIG_PSTORE_DEFAULT_KMSG_BYTES=10240' \
