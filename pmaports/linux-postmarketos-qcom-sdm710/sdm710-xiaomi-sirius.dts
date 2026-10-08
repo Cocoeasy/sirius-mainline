@@ -485,7 +485,13 @@
 		reg = <0x49>;
 
 		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
+		/* Active-high: the vendor node says fts,reset-gpio-enable = <0>,
+		 * i.e. the driver releases reset by driving the line low, and the
+		 * mainline stmfts driver is hard-coded to assert with value 1.
+		 * Declaring it ACTIVE_LOW inverts both, holding the controller in
+		 * reset: it never ACKs on I2C and clamps SDA low.
+		 */
+		reset-gpios = <&tlmm 99 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&touchscreen_default>;
