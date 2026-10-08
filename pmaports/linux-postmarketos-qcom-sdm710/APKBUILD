@@ -71,8 +71,9 @@ prepare() {
 	# empty, dwc3 then fails with "failed to initialize core" and no UDC
 	# appears -- i.e. no USB gadget. Force it on.
 	#
-	# Deliberately NOT set here: CONFIG_DRM_SIMPLEDRM / CONFIG_DRM_FBDEV_EMULATION
-	# / CONFIG_FRAMEBUFFER_CONSOLE. config/sirius.config turns them on because the
+	# Explicitly DISABLED further down: CONFIG_DRM_SIMPLEDRM /
+	# CONFIG_DRM_FBDEV_EMULATION / CONFIG_FRAMEBUFFER_CONSOLE. config/sirius.config
+	# turns them on because the
 	# bring-up boot.img has no UART and the panel is its only console -- but in a
 	# phosh image they take the display away from the compositor:
 	#   * simpledrm registers a second DRM card (card1 "Unknown-1", 285x593mm)
@@ -125,6 +126,9 @@ prepare() {
 		'CONFIG_QCOM_RMTFS_MEM=y' \
 		'CONFIG_SERIAL_QCOM_GENI=y' \
 		'CONFIG_SERIAL_QCOM_GENI_CONSOLE=y' \
+		'CONFIG_DRM_SIMPLEDRM=n' \
+		'CONFIG_DRM_FBDEV_EMULATION=n' \
+		'CONFIG_FRAMEBUFFER_CONSOLE=n' \
 		'CONFIG_VT=y' \
 		'CONFIG_LOGO=n' \
 		'CONFIG_PSTORE=y' \
@@ -162,6 +166,22 @@ prepare() {
 	grep -qE '^CONFIG_TOUCHSCREEN_STMFTS=[ym]$' .config || {
 		echo "FATAL: CONFIG_TOUCHSCREEN_STMFTS is not enabled in .config" >&2
 		grep -E 'CONFIG_TOUCHSCREEN|CONFIG_I2C|CONFIG_LEDS_CLASS|CONFIG_NEW_LEDS' .config >&2 || true
+		exit 1
+	}
+	# Negative assertions: the bring-up console stack must not come back. As a
+	# module simpledrm is autoloaded through the /chosen/framebuffer devicetree
+	# node, so setting it to =n (not merely leaving it unset) is what keeps the
+	# second DRM card away; fbdev emulation likewise has to be off or fb0 keeps
+	# the msm CRTC and phoc's commit fails with EBUSY.
+	for sym in CONFIG_DRM_SIMPLEDRM CONFIG_DRM_FBDEV_EMULATION CONFIG_FRAMEBUFFER_CONSOLE; do
+		if grep -qE "^$sym=[ym]$" .config; then
+			echo "FATAL: $sym is enabled; it takes the display away from phoc" >&2
+			grep -E "^$sym" .config >&2 || true
+			exit 1
+		fi
+	done
+	grep -qE '^CONFIG_VT=y$' .config || {
+		echo "FATAL: CONFIG_VT is not enabled (logind/getty need it)" >&2
 		exit 1
 	}
 }
