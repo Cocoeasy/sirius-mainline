@@ -493,6 +493,9 @@
 		reg = <0x49>;
 
 		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
+		/* Reset is active low here: the vendor driver drives it low during
+		 * power-up and releases it to high afterwards (fts_chip_powercycle).
+		 */
 		reset-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default", "sleep";
