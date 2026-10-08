@@ -230,7 +230,15 @@
 		regulator-name = "tp_vddio_vreg";
 		startup-delay-us = <4000>;
 		enable-active-high;
-		regulator-boot-on;
+		/* always-on, not boot-on: the touch controller's I/O rail is not
+		 * switched on by the bootloader the way the vendor kernel switches
+		 * it on itself, so "assume it is already on" (boot-on) leaves the
+		 * enable GPIO at its initial inactive level.  With the rail off the
+		 * controller is unpowered, its ESD diodes clamp SDA low, and every
+		 * I2C transfer runs into the 1 s timeout.  always-on makes the
+		 * regulator core actually call enable() and drive the pin.
+		 */
+		regulator-always-on;
 		gpios = <&tlmm 26 GPIO_ACTIVE_HIGH>;
 	};
 };
