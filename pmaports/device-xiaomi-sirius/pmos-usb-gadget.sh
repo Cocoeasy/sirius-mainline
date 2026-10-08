@@ -57,8 +57,9 @@ if [ -n "$UDC" ] && [ -z "$(cat "$G/UDC" 2>/dev/null)" ]; then
 	echo "$UDC" > "$G/UDC" 2>/dev/null
 fi
 
-# Give the NCM link an address the host can reach. Windows self-assigns a
-# 169.254/16 link-local address on the matching adapter, so stay in that range.
+# Give the NCM link an address the host can reach. Windows assigns the host
+# side 172.16.42.2/24 for this gadget, so use 172.16.42.1/24 here (and keep a
+# 169.254/16 link-local alias for hosts that self-assign one).
 i=0
 while [ ! -d /sys/class/net/usb0 ] && [ "$i" -lt 30 ]; do
 	sleep 1
@@ -66,6 +67,7 @@ while [ ! -d /sys/class/net/usb0 ] && [ "$i" -lt 30 ]; do
 done
 if [ -d /sys/class/net/usb0 ]; then
 	ip addr flush dev usb0 2>/dev/null
+	ip addr add 172.16.42.1/24 dev usb0 2>/dev/null
 	ip addr add 169.254.42.1/16 dev usb0 2>/dev/null
 	ip link set usb0 up 2>/dev/null
 fi
@@ -73,6 +75,18 @@ fi
 # A shell on the ACM port so the host's COM device is usable for commands.
 if [ -c /dev/ttyGS0 ] && ! pgrep -f 'sh </dev/ttyGS0' >/dev/null 2>&1; then
 	setsid /bin/sh -c 'exec /bin/sh </dev/ttyGS0 >/dev/ttyGS0 2>&1' &
+fi
+
+# A remote shell over the NCM link, so the host can log in without a COM port
+# (Windows binds the ACM interface to its own driver and exposes no COM).
+if ! pgrep -f 'TCP-LISTEN:2323' >/dev/null 2>&1 && ! pgrep -f 'ncat -l' >/dev/null 2>&1; then
+	if command -v socat >/dev/null 2>&1; then
+		setsid socat TCP-LISTEN:2323,reuseaddr,fork EXEC:/bin/sh </dev/null >/dev/null 2>&1 &
+	elif command -v ncat >/dev/null 2>&1; then
+		setsid ncat -l -k -p 2323 -e /bin/sh </dev/null >/dev/null 2>&1 &
+	else
+		telnetd -l /bin/sh -p 2323 </dev/null >/dev/null 2>&1 &
+	fi
 fi
 
 exit 0
