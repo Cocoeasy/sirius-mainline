@@ -19,7 +19,7 @@
 # and are NOT duplicated here.
 pkgname=firmware-xiaomi-sirius
 pkgver=1
-pkgrel=0
+pkgrel=1
 pkgdesc="GPU zap shader firmware for the Xiaomi Mi 8 SE"
 url="https://postmarketos.org"
 arch="aarch64"
@@ -38,6 +38,17 @@ package() {
 	# Same location the kernel requests from: dmesg shows
 	# "Direct firmware load for qcom/a630_sqe.fw", i.e. /usr/lib/firmware/qcom/.
 	install -Dm644 "$srcdir"/a615_zap.* -t "$pkgdir"/usr/lib/firmware/qcom/
+
+	# The generic qcom/ path above is NOT where the zap shader is looked up.
+	# msm resolves it as qcom/<soc>/<device>/<name>.mbn, and dmesg says exactly
+	#   "adreno_zap_shader_load: Unable to load qcom/sdm710/sirius/a615_zap.mbn"
+	# -> "adreno_load_gpu: gpu hw init failed: -2"
+	# -> phoc has no EGL renderer -> greetd start-limit-hit -> black screen.
+	# a615_zap.elf is the complete single-file image (its ELF program headers
+	# resolve inside its 14240 bytes; the .mdt/.bNN split files are a partial
+	# prefix plus segments), so ship it under the name the kernel asks for.
+	install -Dm644 "$srcdir"/a615_zap.elf \
+		"$pkgdir"/usr/lib/firmware/qcom/sdm710/sirius/a615_zap.mbn
 }
 
 sha512sums="
