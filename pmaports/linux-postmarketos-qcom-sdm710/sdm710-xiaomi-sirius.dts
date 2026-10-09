@@ -492,7 +492,13 @@
 		compatible = "st,stmfts";
 		reg = <0x49>;
 
-		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
+		/* Vendor uses fts,irq-flags = 0x2008 (LEVEL_LOW | IRQF_ONESHOT);
+		 * the driver already passes IRQF_ONESHOT itself, so only the
+		 * trigger type has to match: the controller holds INT low while
+		 * an event/command completion is pending, so an edge trigger can
+		 * miss it entirely.
+		 */
+		interrupts-extended = <&tlmm 125 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default", "sleep";
