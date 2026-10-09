@@ -34,7 +34,7 @@ source="
 	sdm710-xiaomi-sirius.dts
 	0001-dt-bindings-display-panel-samsung-ea8074.patch
 	0002-drm-panel-samsung-ea8074.patch
-	0003-input-stmfts-vendor-power-sequence.patch
+	0005-input-stmfts-sync-to-upstream.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -216,5 +216,5 @@ SKIP  linux-sdm670-v7.1.3.tar.gz
 afbc85b15af25bc52a3c4af1c36aea2a0e8688973c886deb57bb95eec9a8760be8ec46835950d5e9d6affea563e49d5ab6ddf2feca1460303bd01bdc71c7c941  sdm710-xiaomi-sirius.dts
 121cac2f8d98f355fc897d37cff9adae90501086fa70bad3687dc281f6cb21a3e5dd0d085c2844aa7606a53b35d6621e6487a16624444af84dee70e30080e00f  0001-dt-bindings-display-panel-samsung-ea8074.patch
 6007ddabb6e9414542f3bdc308a789c0e1f056cf100ec70de0fe57c21dbb8d2600ecba9a0ce99ae464e076872d4e09cd0717ee38e7035ac0e6c9454d16d5f50e  0002-drm-panel-samsung-ea8074.patch
-c4c8a04ec863fcbf0db4fd04b4eda4223f6080f01d7c156b6171457162e224eddac224f4ba2ebe8bcd4357f794ec7404e6e8e7f2f4069fa296f0d8c877cbbaec  0003-input-stmfts-vendor-power-sequence.patch
+3e68a2c4d5c158775d4d1a5497486e523a3f1ab433de6a38a7f771101269944b1c7ea4658118feccf2e6814e610103594ca12b81c307e1581f1632c05cd1f0bf  0005-input-stmfts-sync-to-upstream.patch
 "
