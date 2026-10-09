@@ -493,6 +493,9 @@
 		reg = <0x49>;
 
 		interrupts-extended = <&tlmm 125 IRQ_TYPE_EDGE_FALLING>;
+		/* Reset is active low here: the vendor driver drives it low during
+		 * power-up and releases it to high afterwards (fts_chip_powercycle).
+		 */
 		reset-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default", "sleep";
@@ -739,7 +742,15 @@
 			pins = "gpio99";
 			function = "gpio";
 			drive-strength = <10>;
-			bias-pull-up;
+			/* The controller must be held in reset while its supplies come
+			 * up (vendor fts_chip_powercycle asserts the reset before
+			 * enabling vdd/avdd and only releases it afterwards).  Our
+			 * supplies are always-on, so the controller is powered from
+			 * boot: drive the reset low from boot as well, so it really
+			 * sees the reset asserted through power-up.
+			 */
+			bias-disable;
+			output-low;
 		};
 	};
 

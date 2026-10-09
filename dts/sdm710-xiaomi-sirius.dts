@@ -742,7 +742,15 @@
 			pins = "gpio99";
 			function = "gpio";
 			drive-strength = <10>;
-			bias-pull-up;
+			/* The controller must be held in reset while its supplies come
+			 * up (vendor fts_chip_powercycle asserts the reset before
+			 * enabling vdd/avdd and only releases it afterwards).  Our
+			 * supplies are always-on, so the controller is powered from
+			 * boot: drive the reset low from boot as well, so it really
+			 * sees the reset asserted through power-up.
+			 */
+			bias-disable;
+			output-low;
 		};
 	};
 
