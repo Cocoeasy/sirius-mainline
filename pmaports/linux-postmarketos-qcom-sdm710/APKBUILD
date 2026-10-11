@@ -6,7 +6,7 @@
 # device tree at build time.
 _flavor="postmarketos-qcom-sdm710"
 pkgname=linux-$_flavor
-pkgver=7.1.3
+pkgver=7.2.3_beta2
 pkgrel=1
 pkgdesc="Mainline Kernel fork for SDM710 devices (Xiaomi Mi 8 SE)"
 arch="aarch64"
@@ -34,7 +34,7 @@ source="
 	sdm710-xiaomi-sirius.dts
 	0001-dt-bindings-display-panel-samsung-ea8074.patch
 	0002-drm-panel-samsung-ea8074.patch
-	0005-input-stmfts-sync-to-upstream.patch
+	fts_521.tar.gz
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -45,6 +45,24 @@ prepare() {
 	local mf=arch/arm64/boot/dts/qcom/Makefile
 	grep -q 'sdm710-xiaomi-sirius.dtb' "$mf" || \
 		printf 'dtb-$(CONFIG_ARCH_QCOM)\t+= sdm710-xiaomi-sirius.dtb\n' >> "$mf"
+
+	# --- Vendor ST FTS521 touchscreen driver --------------------------------
+	# The mainline stmfts driver cannot bring this controller up: it has no
+	# firmware download path, so the IC never reaches its application state and
+	# every transfer times out (observed: "stmfts 1-0049: probe failed with
+	# error -110"). The same hardware works on the 57UU/sirius-distro Debian
+	# port with ST's vendor driver (compatible "st,fts521", 142 KB fts.c +
+	# fts_lib/), which downloads st_fts_v521.ftb into the chip. Ship that driver
+	# as a source tarball (fts_521.tar.gz, pinned to linux-sirius
+	# a2b2abe79c651e3c436ddbdbed63b10fa68e32aa) and wire it into the tree here.
+	# It is adapted to 7.2 (of_get_named_gpio() is gone there), which is why the
+	# kernel base is bumped to sdm670-v7.2.3_beta2 in lockstep.
+	tar -xzf "$srcdir"/fts_521.tar.gz -C drivers/input/touchscreen/
+	local tsdir=drivers/input/touchscreen
+	grep -q 'fts_521/' "$tsdir/Makefile" || \
+		printf 'obj-$(CONFIG_TOUCHSCREEN_ST_FTS_V521)\t+= fts_521/\n' >> "$tsdir/Makefile"
+	grep -q 'touchscreen/fts_521/Kconfig' "$tsdir/Kconfig" || \
+		printf 'source "drivers/input/touchscreen/fts_521/Kconfig"\n' >> "$tsdir/Kconfig"
 
 	make ARCH="$_carch" defconfig
 	scripts/kconfig/merge_config.sh -m .config arch/arm64/configs/sdm670.config
@@ -89,7 +107,8 @@ prepare() {
 		'CONFIG_DRM_PANEL_SAMSUNG_EA8074=m' \
 		'CONFIG_DRM_MSM_GPU_STATE=y' \
 		'CONFIG_PHY_QCOM_QUSB2=y' \
-		'CONFIG_TOUCHSCREEN_STMFTS=m' \
+		'CONFIG_TOUCHSCREEN_STMFTS=n' \
+		'CONFIG_TOUCHSCREEN_ST_FTS_V521=m' \
 		'CONFIG_SCSI_UFS_QCOM=y' \
 		'CONFIG_PHY_QCOM_QMP=y' \
 		'CONFIG_PHY_QCOM_QMP_UFS=y' \
@@ -161,12 +180,19 @@ prepare() {
 		grep -E 'CONFIG_PHY_QCOM' .config >&2 || true
 		exit 1
 	}
-	# The STMFTS touchscreen (DT node "st,stmfts" on i2c@a84000) has to be in the
-	# image too: without it the panel lights up but the screen is not touchable.
-	# tristate, so =m is as valid as =y (Kconfig caps it at the I2C value).
-	grep -qE '^CONFIG_TOUCHSCREEN_STMFTS=[ym]$' .config || {
-		echo "FATAL: CONFIG_TOUCHSCREEN_STMFTS is not enabled in .config" >&2
+	# The vendor ST FTS521 touchscreen (DT node "st,fts521" on i2c@a84000) must
+	# be in the image: without it the panel lights up but the screen is not
+	# touchable. tristate, so =m is as valid as =y (Kconfig caps it at I2C).
+	grep -qE '^CONFIG_TOUCHSCREEN_ST_FTS_V521=[ym]$' .config || {
+		echo "FATAL: CONFIG_TOUCHSCREEN_ST_FTS_V521 is not enabled in .config" >&2
 		grep -E 'CONFIG_TOUCHSCREEN|CONFIG_I2C|CONFIG_LEDS_CLASS|CONFIG_NEW_LEDS' .config >&2 || true
+		exit 1
+	}
+	# The mainline stmfts driver is replaced by the vendor one above; both claim
+	# the same DT node, so shipping both would race for the controller.
+	grep -qE '^CONFIG_TOUCHSCREEN_STMFTS=[ym]$' .config && {
+		echo "FATAL: CONFIG_TOUCHSCREEN_STMFTS is enabled; it must not be built alongside st,fts521" >&2
+		grep -E '^CONFIG_TOUCHSCREEN_STMFTS' .config >&2 || true
 		exit 1
 	}
 	# Negative assertions: the bring-up console stack must not come back. As a
@@ -212,9 +238,9 @@ package() {
 		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
 }
 sha512sums="
-SKIP  linux-sdm670-v7.1.3.tar.gz
-afbc85b15af25bc52a3c4af1c36aea2a0e8688973c886deb57bb95eec9a8760be8ec46835950d5e9d6affea563e49d5ab6ddf2feca1460303bd01bdc71c7c941  sdm710-xiaomi-sirius.dts
+SKIP  linux-sdm670-v7.2.3_beta2.tar.gz
+f608eebade36237109a0b058db96a1c0e745c96089c050f182ac3b00fd3f466099b681b36e1ef9e6328e3c7707f4676b1aee39e35e6ad7628691773b2c97bdd7  sdm710-xiaomi-sirius.dts
 121cac2f8d98f355fc897d37cff9adae90501086fa70bad3687dc281f6cb21a3e5dd0d085c2844aa7606a53b35d6621e6487a16624444af84dee70e30080e00f  0001-dt-bindings-display-panel-samsung-ea8074.patch
 6007ddabb6e9414542f3bdc308a789c0e1f056cf100ec70de0fe57c21dbb8d2600ecba9a0ce99ae464e076872d4e09cd0717ee38e7035ac0e6c9454d16d5f50e  0002-drm-panel-samsung-ea8074.patch
-3e68a2c4d5c158775d4d1a5497486e523a3f1ab433de6a38a7f771101269944b1c7ea4658118feccf2e6814e610103594ca12b81c307e1581f1632c05cd1f0bf  0005-input-stmfts-sync-to-upstream.patch
+e789c5eb66d5130880cc369da3ea55f1cb71f57a6f1a44a688a2341168153da0419d6944a12c4bcdc10bc053b9a5382f7970158df5b051444a4528b251cffc8f  fts_521.tar.gz
 "

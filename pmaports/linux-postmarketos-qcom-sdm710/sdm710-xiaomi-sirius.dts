@@ -481,35 +481,53 @@
 	};
 };
 
-/* Touchscreen: ST FTS on i2c9 (downstream qupv3_se9_i2c).
- * sirius reset GPIO 99, IRQ 125.
+/* Touchscreen: ST FTS521 vendor driver on i2c9 (downstream qupv3_se9_i2c).
+ * sirius reset GPIO 99, IRQ 125. The mainline "st,stmfts" driver cannot bring
+ * this controller up (no firmware download path -> probe -110); the vendor
+ * driver bound here ("st,fts521", from 57UU/sirius-distro) downloads
+ * st_fts_v521.ftb into the chip at probe.
  */
 &i2c9 {
 	status = "okay";
 	clock-frequency = <400000>;
 
 	touchscreen@49 {
-		compatible = "st,stmfts";
+		compatible = "st,fts521";
 		reg = <0x49>;
 
-		/* Vendor uses fts,irq-flags = 0x2008 (LEVEL_LOW | IRQF_ONESHOT);
-		 * the driver already passes IRQF_ONESHOT itself, so only the
-		 * trigger type has to match: the controller holds INT low while
-		 * an event/command completion is pending, so an edge trigger can
-		 * miss it entirely.
-		 */
 		interrupts-extended = <&tlmm 125 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
 
-		pinctrl-names = "default", "sleep";
+		/* The vendor driver looks these two up by name. */
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&touchscreen_default>;
 		pinctrl-1 = <&touchscreen_sleep>;
 
-		vdd-supply = <&tp_vddio_vreg>;
 		avdd-supply = <&vreg_l6b_3p3>;
+		vdd-supply = <&tp_vddio_vreg>;
+		fts,pwr-reg-name = "avdd";
+		fts,bus-reg-name = "vdd";
 
 		touchscreen-size-x = <1080>;
 		touchscreen-size-y = <2244>;
+
+		/* Vendor IRQ flags 0x2008 = LEVEL_LOW | IRQF_ONESHOT: the
+		 * controller holds INT low while an event/command completion is
+		 * pending, so an edge trigger can miss it entirely.
+		 */
+		fts,irq-gpio = <&tlmm 125 0x00>;
+		fts,reset-gpio-enable;
+		fts,reset-gpio = <&tlmm 99 0x00>;
+		fts,irq-flags = <0x2008>;
+		fts,key-num = <2>;
+		fts,key-codes = <158 139>;
+		fts,x-max = <1080>;
+		fts,y-max = <2244>;
+		fts,config-array-size = <1>;
+		fts,cfg_0 {
+			fts,tp-vendor = <0x48>;
+			fts,fw-name = "st_fts_v521.ftb";
+			fts,limit-name = "stm_fts_production_limits.csv";
+		};
 	};
 };
 

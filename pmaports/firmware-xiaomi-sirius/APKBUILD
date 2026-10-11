@@ -17,10 +17,16 @@
 #
 # The generic a630_gmu.bin and a630_sqe.fw come from firmware-qcom-adreno-a630
 # and are NOT duplicated here.
+#
+# Also ships the ST FTS521 touchscreen firmware (st_fts_v521.ftb). The vendor
+# driver (compatible "st,fts521") downloads it into the controller at probe;
+# without it the touchscreen never comes up. Taken from the same-hardware
+# 57UU/sirius-distro port (firmware/touch/st_fts_v521.ftb), which runs the
+# touchscreen successfully.
 pkgname=firmware-xiaomi-sirius
 pkgver=1
-pkgrel=1
-pkgdesc="GPU zap shader firmware for the Xiaomi Mi 8 SE"
+pkgrel=2
+pkgdesc="GPU zap shader + touchscreen firmware for the Xiaomi Mi 8 SE"
 url="https://postmarketos.org"
 arch="aarch64"
 license="custom"
@@ -32,12 +38,18 @@ source="
 	a615_zap.b01
 	a615_zap.b02
 	a615_zap.elf
+	st_fts_v521.ftb
 "
 
 package() {
 	# Same location the kernel requests from: dmesg shows
 	# "Direct firmware load for qcom/a630_sqe.fw", i.e. /usr/lib/firmware/qcom/.
-	install -Dm644 "$srcdir"/a615_zap.* -t "$pkgdir"/usr/lib/firmware/qcom/
+	install -Dm644 "$srcdir"/a615_zap.mdt \
+		"$srcdir"/a615_zap.b00 \
+		"$srcdir"/a615_zap.b01 \
+		"$srcdir"/a615_zap.b02 \
+		"$srcdir"/a615_zap.elf \
+		-t "$pkgdir"/usr/lib/firmware/qcom/
 
 	# The generic qcom/ path above is NOT where the zap shader is looked up.
 	# msm resolves it as qcom/<soc>/<device>/<name>.mbn, and dmesg says exactly
@@ -49,6 +61,11 @@ package() {
 	# prefix plus segments), so ship it under the name the kernel asks for.
 	install -Dm644 "$srcdir"/a615_zap.elf \
 		"$pkgdir"/usr/lib/firmware/qcom/sdm710/sirius/a615_zap.mbn
+
+	# Touchscreen firmware: request_firmware() looks for it by bare name
+	# (fts,fw-name = "st_fts_v521.ftb") -> /usr/lib/firmware/st_fts_v521.ftb.
+	install -Dm644 "$srcdir"/st_fts_v521.ftb \
+		"$pkgdir"/usr/lib/firmware/st_fts_v521.ftb
 }
 
 sha512sums="
@@ -57,4 +74,5 @@ sha512sums="
 4010ad4173f2d69ee80f6fe90869b63575ea60382386d009b32f7485e496a554c4af6a25ae900d1619ecd6e2818f8d681c4a2729dfc3a71bae27aefa9789f9a4  a615_zap.b01
 f6f0131c4e45d860f3553e3ecc9e417de69efd5a4838f8c1d42c8c494349056b15d7ab23008a81c3cda55e08f2038a492d13c7c1f2cc87afa24715668948f9d5  a615_zap.b02
 e67a6f1ca4ebdbd0b4d56bbef16258edf791d04e7a5d2d9e44a6784953d38770d8d19fe62096a0b05f22d6527c75c62168b14de4756ac79286445a8849d444e4  a615_zap.elf
+c907301037812a69d6ef49439969c8a6f51cf106b5442e816d8634f077d8f28a74da678b1b3040ade3e1c8f56af84367ee10ed3b3108aded34ec9f076588fbdf  st_fts_v521.ftb
 "
